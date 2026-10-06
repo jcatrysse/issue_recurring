@@ -5,8 +5,6 @@ Example:
   RAILS_ENV=production rake redmine:issue_recurring:renew_all 
 END_DESC
 
-require_relative '../../../../config/environment'
-
 namespace :redmine do
   namespace :issue_recurring do
     task :renew_all => :environment do
@@ -19,7 +17,13 @@ namespace :redmine do
       desc 'Runs the plugins migration tests.'
       task :migration => "db:test:prepare" do |t|
         $: << "test"
-        Rails::TestUnit::Runner.rake_run ["plugins/#{ENV['NAME'] || '*'}/test/migration/**/*_test.rb"]
+        test_files = FileList["plugins/#{ENV['NAME'] || '*'}/test/migration/**/*_test.rb"]
+        # Rails >= 7.1 replaced rake_run with run_from_rake
+        if Rails::TestUnit::Runner.respond_to?(:run_from_rake)
+          Rails::TestUnit::Runner.run_from_rake 'test', test_files
+        else
+          Rails::TestUnit::Runner.rake_run test_files
+        end
       end
     end
   end
