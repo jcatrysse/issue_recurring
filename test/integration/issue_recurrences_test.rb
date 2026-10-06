@@ -2796,8 +2796,11 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
       [ir1, @issue1, @issue2].map(&:reload)
       assert !@issue2.closed?
       if count > 0
-        assert_equal config[:journalized], Journal.last(count).map(&:journalized)
-        assert_equal config[:journalized].map(&:author), Journal.last(count).map(&:user)
+        # renew_all does not order issues, so neither do the journals
+        journals = Journal.last(count).sort_by(&:journalized_id)
+        journalized = config[:journalized].sort_by(&:id)
+        assert_equal journalized, journals.map(&:journalized)
+        assert_equal journalized.map(&:author), journals.map(&:user)
       end
     end
   end
