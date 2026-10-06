@@ -56,6 +56,7 @@ The most notable features of this plugin include:
 
    |Redmine | Compatible plugin versions |Tested with                                                                                                        |
    |--------|----------------------------|-------------------------------------------------------------------------------------------------------------------|
+   |7.0     | GEOxyz redmine70-migration |Redmine 7.0.1 (7.0-stable-GEOxyz), Ruby 3.3.6, Rails 8.1.3.1, PostgreSQL 16, MariaDB 10.11                       |
    |5.0     | 1.7 -                      |Redmine 5.0.2, Ruby 2.7.6p219, Rails 6.1.6                                                                         |
    |4.2     | 1.7 -                      |Redmine 4.2.7, Ruby 2.7.6p219, Rails 5.2.8                                                                         |
    |4.0     | 1.2 - 1.6                  |Redmine 4.0.4, Ruby 2.4.6p354, Rails 5.2.3                                                                         |

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (GEOxyz, Redmine 7)
+
+Requires Redmine 7.0 (Rails 8.1); does not run on Redmine 5.1 any more.
+
+Fixes:
+* runs on Redmine 7 / Rails 8.1 (`enum` syntax, `Redmine::I18n` in the model, test fixtures)
+* relations of an issue reopened by its recurrence are no longer deleted (regression of 1.7.2)
+* success notices after adding, editing or deleting a recurrence are shown again (lost with the removal of `base.js.erb`)
+* `rake redmine:issue_recurring:renew_all` waits for queued webhook jobs, so Redmine 7 webhooks of renewed issues are not lost
+* edit, delete and add icons on Redmine 7 (SVG sprite)
+* rake files no longer boot the application when loaded; `redmine:plugins:test:migration` works on Rails 8
+* `db:schema:load` / `db:test:prepare` restore the plugin's migration versions again (Rails 7.1+)
+
 ## 1.8 [coming soon]
 
 New features:
