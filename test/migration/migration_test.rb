@@ -28,6 +28,16 @@ class MigrationsTest < IssueRecurringIntegrationTestCase
     @issue2 = issues(:issue_02)
   end
 
+  def teardown
+    # Tests here run without transactions. Leave the plugin fully migrated
+    # (test_migration_003 ends at version 2) and without the recurrences
+    # created here, for the tests that run after these in the same process.
+    migrate @plugin.latest_migration
+    [::Issue, ::IssueRecurrence, IssueRecurrence].each(&:reset_column_information)
+    IssueRecurrence.delete_all
+    super
+  end
+
   class IssueRecurrence < ActiveRecord::Base
   end
 
