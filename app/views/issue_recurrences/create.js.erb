@@ -3,6 +3,7 @@
     '<%= escape_javascript(nameless_error_messages_for 'recurrence') %>'
   );
 <% else %>
+  <%= render partial: 'issue_recurrences/flash' %>
   $('#new-recurrence').empty();
   $('#recurrences')
     .html('<%= escape_javascript(render :partial => 'issues/recurrences/index') %>');

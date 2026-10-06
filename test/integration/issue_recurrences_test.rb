@@ -282,6 +282,22 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
     assert_select "tr#recurrence-#{r.id} td.buttons a.icon-del svg"
   end
 
+  def test_create_update_and_destroy_show_notice
+    @issue1.update!(start_date: Date.new(2018,9,15), due_date: Date.new(2018,9,20))
+    r = create_recurrence
+    assert_includes response.body, 'New issue recurrence created.'
+    update_recurrence(r, multiplier: 2)
+    assert_includes response.body, 'Issue recurrence updated.'
+    destroy_recurrence(r)
+    assert_includes response.body, 'Issue recurrence deleted.'
+  end
+
+  def test_create_with_errors_shows_no_notice
+    @issue1.update!(start_date: nil, due_date: nil)
+    create_recurrence_should_fail(anchor_mode: :first_issue_fixed)
+    assert_not_includes response.body, 'New issue recurrence created.'
+  end
+
   def test_renew_even_when_issue_author_has_no_permission_granted
     dates = random_dates
     @issue1.update!(dates)

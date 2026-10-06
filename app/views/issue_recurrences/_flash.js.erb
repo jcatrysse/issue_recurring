@@ -1,0 +1,2 @@
+$('div[id^=flash_]').remove();
+$('#content').prepend('<%= escape_javascript render_flash_messages %>');
