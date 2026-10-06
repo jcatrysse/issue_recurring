@@ -1,2 +1,4 @@
 .byebug_history
 Gemfile.lock
+# Redmine checkout made by .codex/redmine_clone.sh
+/redmine/
