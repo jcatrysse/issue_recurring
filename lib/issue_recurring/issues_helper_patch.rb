@@ -92,13 +92,18 @@ module IssueRecurring
     end
 
     def edit_button(r)
-      link_to l(:button_edit), edit_issue_recurrence_path(r), remote: true,
-        class: 'icon icon-edit'
+      link_to icon_with_label('edit', l(:button_edit)), edit_issue_recurrence_path(r),
+        remote: true, class: 'icon icon-edit'
     end
 
     def delete_button(r)
-      link_to l(:button_delete), issue_recurrence_path(r), method: :delete, remote: true,
-        class: 'icon icon-del'
+      link_to icon_with_label('del', l(:button_delete)), issue_recurrence_path(r),
+        method: :delete, remote: true, class: 'icon icon-del'
+    end
+
+    # Redmine >= 6 draws icons from an SVG sprite; the icon-* classes alone show none.
+    def icon_with_label(icon, label)
+      respond_to?(:sprite_icon) ? sprite_icon(icon, label) : label
     end
   end
 end

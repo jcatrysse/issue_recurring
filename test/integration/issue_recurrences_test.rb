@@ -266,6 +266,22 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
     assert_select 'div#issue_recurrences', false
   end
 
+  def test_show_issue_and_index_show_edit_and_delete_icons
+    @issue1.update!(start_date: Date.new(2018,9,15), due_date: Date.new(2018,9,20))
+    r = create_recurrence
+
+    get issue_path(@issue1)
+    assert_response :ok
+    assert_select "tr#recurrence-#{r.id} td.buttons a.icon-edit svg"
+    assert_select "tr#recurrence-#{r.id} td.buttons a.icon-edit", text: 'Edit'
+    assert_select "tr#recurrence-#{r.id} td.buttons a.icon-del svg"
+    assert_select "tr#recurrence-#{r.id} td.buttons a.icon-del", text: 'Delete'
+
+    get project_recurrences_path(@project1)
+    assert_response :ok
+    assert_select "tr#recurrence-#{r.id} td.buttons a.icon-del svg"
+  end
+
   def test_renew_even_when_issue_author_has_no_permission_granted
     dates = random_dates
     @issue1.update!(dates)
