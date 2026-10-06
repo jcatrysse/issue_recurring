@@ -18,50 +18,202 @@ what is left. Written 2026-10-06 from a measured analysis (report at the bottom)
 | Plugin id | `issue_recurring` |
 | GEOxyz runs today | `master` |
 | Upstream | cryptogopher/issue_recurring (master 19d3997, 2024-08-11; inactive, R6 ticket #50 unanswered) |
-| Runs on Redmine 7 as is | NEE |
+| Runs on Redmine 7 as is | NEE (master); JA on this branch |
 | Upstream sync | UPSTREAM DOOD |
 | After sync | n.v.t. |
 | Complexity (1 trivial .. 5 rewrite) | 2 |
-| Measured on | Redmine 7.0.1 (7.0-stable-GEOxyz + latest 7.0-stable), Rails 8.1.3.1, Ruby 3.3.6, PostgreSQL 16 and MariaDB 10.11 |
-| Branch head when this file was written | `16d2d8a` |
+| Measured on | Redmine 7.0.1 (7.0-stable-GEOxyz), Rails 8.1.3.1, Ruby 3.3.6, PostgreSQL 16.15 and MariaDB 10.11.14 |
+| Migration session | 2026-10-06/07, done: work list complete, tests and e2e green on both databases, OpenAI review without findings; one intermittent test error open (Open question 6) |
+| Branch head when this file was last updated | see `git log` (the commit that changes this file) |
+| Deploy | only together with the Redmine 7 upgrade: the branch needs Rails >= 7.0 (`enum :x` form) |
 
 ## Already on this branch
 
-- `59879c4` Make IssueRecurrence load and render on Redmine 7 (Rails 8.1)
-- `22fab85` Load only the plugin's own fixtures in tests on Rails 7.1+
+Before the session: `59879c4` (IssueRecurrence loads and renders on Rails 8.1), `22fab85` (plugin
+fixtures only on Rails 7.1+). Session commits, in order:
+
+| commit | what |
+|---|---|
+| `cbb662a` | `.codex/test_setup.sh`: PostgreSQL role creation as root (tooling) |
+| `dcf1c89` | Work item 1: schema patches for Rails 7.1+ (`Schema::Definition`, `pool.schema_migration`) + `test/unit/schema_test.rb` |
+| `68d7e2a` | Migration tests leave the database as they found it (78 order-dependent failures otherwise) |
+| `03480ad` | Work items 2 and 3: rakefile no longer boots the app; `redmine:plugins:test:migration` on Rails 7.1+ |
+| `de5bf97` | Work item 4: edit/delete icons through `sprite_icon` + test |
+| `a1e6586` | Flaky `test_renew_applies_journal_mode_configuration_setting` made order-independent |
+| `c96b054` | GEOxyz 241424b follow-up: success notices shown again, scoped to the plugin's JS responses + test |
+| `f915734` | GEOxyz e6fae03 bug: reopen renewals deleted the issue's own relations + test |
+| `7649185` | Webhooks: `renew_all` waits for queued webhook jobs (`:async` adapter) + test |
+| `408c64c` | UX: Add link of the panel with the core `add` icon + test |
+| `12b28af`, `7610e14`, `0ae8281`, `87c1c81` | E2E scenarios, seed, screenshots (PostgreSQL, MariaDB, before on 5.1) |
+| `b953bc5` | CHANGELOG, README compatibility row |
+| `6aa1a18` | OpenAI review report (no findings) |
+| `3e0926a` | `test_renew_even_when_issue_author_has_no_permission_granted` made deterministic (3 random failure cases, pre-existing) |
 
 ## Work list for the migration session
 
-In this order: things that break, security, the GEOxyz changes, the open items, then the checks.
+1. DONE `dcf1c89`. Schema patches rewritten for Rails 7.1+: prepend on `ActiveRecord::Schema::Definition`
+   (falls back to `ActiveRecord::Schema`), `pool.schema_migration.create_table`. Measured: after
+   `db:test:prepare` the plugin's versions were `[]` before, `1..8` after. The 3 MigrationsTest errors
+   are gone. While doing this, found that the migration tests left the DB at version 2 with
+   `count = NULL` rows when they ran before the other tests in one process: fixed in `68d7e2a`.
+2. DONE `03480ad`. `redmine:plugins:test:migration` uses `run_from_rake` (core's way), `rake_run` where it
+   still exists. Before: `NoMethodError rake_run`; after: 3 runs, 0 failures, 0 errors.
+3. DONE `03480ad`. `require_relative config/environment` removed. `rake -T` 3.5 s -> 2.6 s. Seen live on
+   5.1 + master: `rake generate_secret_token` without RAILS_ENV aborted with `LoadError listen` because
+   the plugin's rakefile booted the app in development.
+4. DONE `de5bf97`, `408c64c`. Edit, delete and add links use `sprite_icon` (plain label where it does not exist).
+5. NOTED. The branch needs Rails >= 7.0; deploy only with the Redmine 7 upgrade (also in CHANGELOG).
+6. DONE. Tests on Redmine 7.0-stable-GEOxyz: see "Results". 5.1-stable: not run for this branch, it
+   cannot run there (item 5); 5.1 was used only for the before pictures with `master`.
+7. DONE. Webhooks: see "Webhooks". One fix (`7649185`).
+8. DONE. Every function end to end in a browser, see "Inventory" and "Results".
 
-**Open items from the analysis** (Dutch; where they conflict with a decision or a priority item above, those win)
+Extra, found during the session (not in the analysis):
 
-1. Rewrite schema_patch/schema_statements_patch for Rails 7.1+ (prepend ActiveRecord::Schema::Definition, pool.schema_migration) - fixes 3 MigrationsTest errors and db:schema:load plugin versions (dev/test only)
-2. Fix or drop dev task redmine:plugins:test:migration (Rails::TestUnit::Runner.rake_run removed)
-3. Drop require_relative config/environment from lib/tasks/issue_recurring.rake
-4. Icons icon-edit/icon-del -> sprite_icon (cosmetic)
-5. Branch needs Rails >= 7.0 (enum :x form): deploy only with the 7.0 upgrade
-
-**Checks**
-
-6. Run the plugin's whole test suite on Redmine 7.0-stable-GEOxyz with PostgreSQL AND MariaDB, and once on 5.1-stable if the branch is meant to stay 5.1-compatible.
-7. Check Redmine 7 webhooks against this plugin (see "Rules"), and note the result here even if nothing is needed.
-8. Verify every feature of the plugin by hand on a running Redmine 7 (screenshots).
+- Reopen renewals deleted relations (GEOxyz e6fae03), fixed `f915734`; production data may be affected,
+  see "After the upgrade".
+- Success notices invisible since GEOxyz 241424b, fixed `c96b054`.
+- `test_renew_applies_journal_mode_configuration_setting` was order-dependent (analysis called it flaky),
+  fixed `a1e6586`.
+- `test_renew_even_when_issue_author_has_no_permission_granted` failed on some random configurations
+  (no dates, `count_limit` 0, a weekend start date in a `*_wday` mode), fixed `3e0926a`: 800 repetitions
+  green, before about 1 failure in 150.
 
 ## GEOxyz changes to review or re-apply
 
-These GEOxyz commits are on the branch GEOxyz runs today and therefore on this branch. Review each one against the code it now sits on (upstream merges and Redmine 7 core): drop it if upstream or core now does the same, rewrite it if it is not up to the quality rules below (tests, I18n, security, portability), keep it otherwise. Record the verdict per commit in this file.
+| commit | date | subject | verdict |
+|---|---|---|---|
+| `e6fae03` | 2025-10-31 | Feature: add an option to copy issue relations in recurrence | KEEP, with a fix: for creation mode "reopen" the new issue is the issue itself, and the step that removes unselected relation types from the new issue deleted the issue's own relations (default setting: all of them). Measured on 5.1 + master: relations 1 -> 0 after one reopen. Fixed in `f915734` (relation copying only when a copy is made), test added. Code otherwise sound: settings sanitised against `IssueRelation::TYPES`, settings helper escapes labels, unit and integration tests present; the core "copied to" link of a copy survives with and without selected types (checked). |
+| `241424b` | 2025-06-18 | Defect: issue_recuurent throws an error on the Custom Fields page #6165 | KEEP the removal of `layouts/base.js.erb` (it replaced the layout of every JS response in Redmine). Side effect fixed in `c96b054`: that layout was the only thing showing the plugin's notices "New issue recurrence created/updated/deleted"; they are now rendered by the plugin's own `create.js`/`destroy.js`, only on success. Before pictures (`docs/e2e/before/`) show the missing notice on today's production. |
 
-| commit | date | subject |
-|---|---|---|
-| `e6fae03` | 2025-10-31 | Feature: add an option to copy issue relations in recurrence |
-| `241424b` | 2025-06-18 | Defect: issue_recuurent throws an error on the Custom Fields page #6165 |
+## Inventory of functions
+
+Taken from README, `init.rb` (module, 2 permissions, menu, settings), routes, the view hook, patches,
+rake tasks. Scenarios in `test/e2e/`, screenshots and tables in `docs/e2e/<scenario>.md`.
+
+| function | how a user reaches it | scenario | screenshots |
+|---|---|---|---|
+| Recurrences panel on the issue page (hook `view_issues_show_description_bottom`, `view_issue_recurrences`) | issue page | `issue-panel.mjs` | `issue-panel-*` (manager, admin, reporter hidden, outsider 403, module off/on) |
+| Add a recurrence (`new`/`create`, `manage_issue_recurrences`) | panel > Add | `add-recurrence.mjs` | `add-recurrence-*` (form, invalid date limit, created with notice/icons, reload, reporter 403, outsider 403) |
+| Edit a recurrence (`edit`/`update`) | panel > Edit | `edit-recurrence.mjs` | `edit-recurrence-*` (form, invalid multiplier, updated, reporter 403 and PATCH 403, 404) |
+| Delete a recurrence (`destroy`) | panel > Delete | `delete-recurrence.mjs` | `delete-recurrence-*` (reporter DELETE 403, deleted with notice) |
+| Project tab "Issue recurrences" (`index`, menu item) | project menu | `project-recurrences.mjs` | `project-recurrences-*` (list, empty state, delete from list, reporter no tab + 403, outsider 403, anonymous to login, unknown project 404) |
+| Plugin settings (author, keep assignee, journal mode, copy recurrences, copy relation types, renew ahead) | Administration > Plugins > Configure | `plugin-settings.mjs` | `plugin-settings-*` (defaults, negative refused by form, saved, hand-made POST with unknown values stored as defaults, manager 403) |
+| Renewal: cron `rake redmine:issue_recurring:renew_all` (copies, reopen, "recurrence of", mails, webhooks, copy relations, journal on reopen, second run idempotent) | cron | `renew.mjs` | `renew-*` |
+| Copy recurrences on issue copy (setting), copies never keep "recurrence of" | issue > Copy | `copy-issue.mjs` | `copy-issue-*` |
+| REST API: none of its own; core issue API with a recurrence, plugin route not an API | API | `rest-api.mjs` | `rest-api-issue-json.png` |
+| Migrations 001-008, down and up | `redmine:plugins:migrate` | command | see "Results" |
+| Dev task `redmine:plugins:test:migration` | rake | command | see work item 2 |
+
+Not testable here: nothing; the plugin uses no IdP, LDAP, OAuth or mail server (mail goes to files).
+
+## Results (2026-10-06)
+
+Baseline, before any change (branch head `06fc75b`, Redmine 7.0-stable-GEOxyz, PostgreSQL):
+unit + integration in one process 88 runs, 0 failures, 0 errors; migration tests 3 runs, 3 errors
+(DuplicateTable, the schema patch); all files in one process (as `.codex/test_plugin.sh` runs them)
+91 runs, 79 failures, 1 error, depending on the order (the migration tests corrupted the DB for the
+tests after them). Smoke 14 pages and core flows 6 screenshots: 0 problems.
+
+After, plugin tests (`.codex/test_plugin.sh`, all files in one process, random order):
+
+| database | result |
+|---|---|
+| PostgreSQL 16.15 | final at `3e0926a`: 97 runs, 10785 assertions, 0 failures, 0 errors (seed 20480); 10 further full runs before it at the same code also green; see Open question 6 |
+| MariaDB 10.11.14 | final at `3e0926a`: 97 runs, 10785 assertions, 0 failures, 0 errors (seed 55274); earlier runs 96 and 97 runs green |
+| PostgreSQL with redmine_custom_workflows, redmine_subtask, redmine_issue_templates (`redmine70-migration`) | 6 full runs: 5 x 97 runs 0 failures 0 errors, 1 run 1 error (same intermittent error as above, not caused by these plugins) |
+
+Migrations 001-008 down to 0 and up again on PostgreSQL and MariaDB: 8 reverted (table and
+`issues.recurrence_of_id` gone), 8 migrated (back, 8 versions recorded). Boot and eager load in
+production mode: `start_server.sh` (production) on both databases without errors.
+
+End to end, Redmine 7.0-stable-GEOxyz in production mode, fresh database each time:
+
+| run | smoke | core | plugin scenarios | problems |
+|---|---|---|---|---|
+| PostgreSQL (`docs/e2e/`) | 14 | 6 | 9 scenarios, 40 screenshots | 0 |
+| MariaDB (`docs/e2e/mariadb/`) | 14 | 6 | 9 scenarios, 40 screenshots | 0 |
+| PostgreSQL + the 3 plugins above (not committed) | 14 | 6 | 9 scenarios, 40 screenshots | 0 |
+| Before: Redmine 5.1-stable + `master` (`docs/e2e/before/`) | - | - | 6 scenarios, 30 screenshots | 7, all expected: no notice after add/edit/delete, icons as CSS not SVG |
+
+Every screenshot of the PostgreSQL run was opened and looked at; MariaDB and before spot-checked.
+
+## Webhooks
+
+Redmine 7 sends `issue.created`/`issue.updated` from model callbacks, so issues created or reopened by
+`renew_all` trigger webhooks with core's payload; the plugin adds no issue data to the API or the
+payload, so nothing to make consistent there. One real problem: the cron task runs with the production
+default `:async` job adapter, the jobs run on threads of the rake process, and rake exited before the
+last ones ran: 4 copies, 3 `issue.created` received. Fixed in `7649185` (wait for the adapter at the
+end of the task); after: 4 of 4, plus `issue.updated` for the reopened issue (`renew.mjs`, receiver on
+a non-loopback address because Redmine refuses loopback targets).
+
+## Review
+
+- Own review of the whole diff `e6fae03..HEAD`: nothing left open. Notes: `html_safe` in
+  `IssueRecurrence#to_s`, `last_recurrence`, `next_recurrences` only wraps locale strings, numbers,
+  dates and `link_to` output, no user input (pre-existing, unchanged). After `renew_all` shut down the
+  `:async` adapter, later jobs in the same rake process run in the caller thread (executor fallback), so
+  chaining tasks still works.
+- OpenAI review (`.codex/openai_review.sh e6fae03`, gpt-5, 34 files): no findings
+  (`docs/reviews/openai-2026-10-06-b953bc5.md`).
+
+## Findings outside this plugin
+
+- Redmine core 7.0-stable-GEOxyz: core's own rake tasks that create issues (`redmine:email:receive_imap`,
+  `receive_pop3`, `receive`) have the same lost-webhook problem under the `:async` adapter. Not fixed
+  here; for GEOxyz either a real job backend (`config.active_job.queue_adapter` in
+  `config/additional_environment.rb`) or a core fix.
+- `.codex/e2e.sh` also runs `test/e2e/helpers.mjs` as a scenario (it does nothing); harmless.
+
+## Open questions for Jan
+
+1. Success notices (`c96b054`): users see "New issue recurrence created/updated/deleted" again, as
+   upstream did before 241424b. Options: keep (recommended, restores lost behaviour, no core page
+   affected) or drop the commit.
+2. Lost relations in production (`f915734`): since 1.7.2 (2025-10-31) every renewal of a "reopen"
+   recurrence deleted the relations of that issue whose type was not selected in "Copy relations"
+   (default: all). The removals were not journaled, so only a backup from before 2025-10-31 shows
+   them (SQL under "After the upgrade"). Options: compare with a backup and restore by hand
+   (recommended), or accept the loss.
+3. Webhooks of the cron task (`7649185`): kept in the plugin. Alternative: a real job backend for the
+   whole Redmine, which also covers core's mail-receiving tasks. Recommendation: keep the plugin fix and
+   decide the backend for all of Redmine.
+4. Version number: still `1.7.2` in `init.rb`; recommend `1.7.3` (or `1.8.0-geoxyz`) when merging.
+5. 5.1 compatibility: the branch does not run on 5.1 (enum syntax, as the analysis said); recommended:
+   merge to `master` only together with the Redmine 7 upgrade.
+6. Intermittent test error: `test_renew_anchor_mode_fixed_one_issue_date_not_set` failed twice in
+   about 45 full runs (`ActiveRecord::RecordInvalid: Last issue is invalid` at
+   `self.save!(context: :renew)` in `IssueRecurrence#create`), once with and once without the other
+   plugins (seeds 14709 and 43056). Not reproduced with the same seeds, under CPU load, after migrating
+   the test DB down and up, nor in 10 more full runs with a debug print of the issue's errors. The test
+   itself is deterministic (fixed dates). Not fixed, because the cause is unknown; no production
+   symptom known. Recommendation: keep the debug idea (print `new_issue.errors` before that `save!`)
+   for the next time it shows up, in CI or in the coordinator's harness.
 
 ## After the upgrade (production)
 
 Actions the person doing the upgrade must take, or know about, for this plugin:
 
-- Re-create the cron entry for `rake redmine:issue_recurring:renew_all`.
+- Deploy this branch only together with Redmine 7 (it does not run on 5.1).
+- `RAILS_ENV=production bundle exec rake redmine:plugins:migrate`: no new migrations (still 001-008),
+  nothing changes in the database; plugin settings are kept as they are.
+- Re-create the cron entry for the renewal, with the Ruby of the new installation on PATH
+  (`rake` alone is not on PATH with rbenv):
+  `12 6 * * * cd /var/lib/redmine && RAILS_ENV=production bundle exec rake redmine:issue_recurring:renew_all >> log/cron-issue_recurring.log 2>&1`
+  (`bin/rails redmine:issue_recurring:renew_all` works as well).
+- If Redmine 7 webhooks are used: nothing to do, the task now waits for its webhook jobs.
+- Relations lost to the reopen bug (Open question 2). The removals were not journaled (checked on
+  5.1 + master with journal mode "never" and "on reopen": no journal detail), so they can only be found
+  by comparing with a database backup from before 1.7.2 was deployed (2025-10-31):
+  ```sql
+  -- production: issues renewed by reopening
+  SELECT issue_id FROM issue_recurrences WHERE creation_mode = 2;
+  -- backup and production: their relations; rows only in the backup were deleted
+  SELECT id, issue_from_id, issue_to_id, relation_type, delay FROM issue_relations
+   WHERE issue_from_id IN (<ids>) OR issue_to_id IN (<ids>) ORDER BY id;
+  ```
+  Relations added and removed by people after the backup show up too: check before restoring.
 
 ## How to test
 
