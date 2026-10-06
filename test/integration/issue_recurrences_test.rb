@@ -2668,6 +2668,24 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
     assert_equal r.last_issue, @issue1
   end
 
+  def test_renew_creation_mode_reopen_keeps_relations_of_reopened_issue
+    # copy_relation_types is [] (default): no relation to copy, none to remove
+    @issue1.update!(start_date: Date.new(2018,9,15), due_date: Date.new(2018,9,20))
+    relates = IssueRelation.create!(issue_from: @issue1, issue_to: @issue2,
+                                    relation_type: 'relates')
+    blocks = IssueRelation.create!(issue_from: @issue1, issue_to: @issue3,
+                                   relation_type: 'blocks')
+
+    create_recurrence(creation_mode: :reopen, anchor_mode: :last_issue_flexible)
+    travel_to(Date.new(2018,9,18))
+    close_issue(@issue1)
+    renew_all(0)
+    assert !@issue1.reload.closed?
+
+    assert IssueRelation.exists?(relates.id)
+    assert IssueRelation.exists?(blocks.id)
+  end
+
   def test_renew_applies_author_login_configuration_setting
     # NOTE: to be removed when system tests are working with all supported Redmine versions.
     # * corresponding system test: test_settings_author_login

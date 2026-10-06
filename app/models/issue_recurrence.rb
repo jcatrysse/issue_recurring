@@ -423,8 +423,11 @@ class IssueRecurrence < ActiveRecord::Base
         log(:warning_author, id: new_issue.id, login: author_login)
       end
 
-      relation_types = Array(Setting.plugin_issue_recurring[:copy_relation_types])
-      copy_issue_relations(ref_issue, new_issue, relation_types)
+      # A reopened issue keeps its own relations, there is no copy to relate
+      unless self.reopen?
+        relation_types = Array(Setting.plugin_issue_recurring[:copy_relation_types])
+        copy_issue_relations(ref_issue, new_issue, relation_types)
+      end
 
       if self.include_subtasks
         target_label = self.anchor_to_start ? :start : :due
