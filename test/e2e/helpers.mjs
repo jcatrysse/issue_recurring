@@ -1,6 +1,8 @@
 // Helpers for this plugin's scenarios: reset the plugin's seed data and run
 // commands (rails runner, rake) against the same Redmine as the server.
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const REDMINE = process.env.REDMINE_DIR || 'redmine';
@@ -17,8 +19,11 @@ export function reset() {
   return JSON.parse(line.slice('E2E_IDS '.length));
 }
 
+// Runs Ruby code with rails runner (through a file, so any quoting works).
 export function rails(code) {
-  return sh(`bundle exec rails runner ${JSON.stringify(code)}`).trim();
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-')), 'code.rb');
+  fs.writeFileSync(file, code);
+  try { return sh(`bundle exec rails runner ${file}`).trim(); } finally { fs.rmSync(path.dirname(file), { recursive: true }); }
 }
 
 // The cron entry point: rake redmine:issue_recurring:renew_all

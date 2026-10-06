@@ -9,7 +9,8 @@ tracker = project.trackers.first
 today = Date.current
 
 def reset_issue(project, tracker, subject, attrs)
-  issue = Issue.find_by(project_id: project.id, subject: subject) ||
+  # copies made by renewals have the same subject: the original is the oldest
+  issue = Issue.where(project_id: project.id, subject: subject).order(:id).first ||
           Issue.new(project: project, tracker: tracker, subject: subject,
                     author: User.find_by(login: 'manager'),
                     priority: IssuePriority.default || IssuePriority.first)
@@ -33,7 +34,7 @@ reset_issue(private_project, private_project.trackers.first, 'Recurring private 
             start_date: today, due_date: today + 1)
 
 [copy, reopen].each do |issue|
-  IssueRelation.where(issue_from_id: issue.id, issue_to_id: related.id).delete_all
+  IssueRelation.where(issue_from_id: [issue.id, related.id], issue_to_id: [issue.id, related.id]).delete_all
   IssueRelation.create!(issue_from: issue, issue_to: related, relation_type: 'relates')
 end
 closed = IssueStatus.where(is_closed: true).first
@@ -47,6 +48,6 @@ Setting.plugin_issue_recurring = Setting.available_settings['plugin_issue_recurr
 private_project.enable_module!(:issue_recurring)
 
 ids = {panel: panel.id, copy: copy.id, reopen: reopen.id, related: related.id,
-       undated: Issue.find_by(subject: 'Recurring undated issue').id,
-       private: Issue.find_by(subject: 'Recurring private issue').id}
+       undated: Issue.where(subject: 'Recurring undated issue').order(:id).first.id,
+       private: Issue.where(subject: 'Recurring private issue').order(:id).first.id}
 puts "E2E_IDS #{ids.to_json}"
