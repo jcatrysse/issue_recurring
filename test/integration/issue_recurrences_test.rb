@@ -303,10 +303,14 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
   def test_renew_even_when_issue_author_has_no_permission_granted
     dates = random_dates
     @issue1.update!(dates)
-    ir = create_random_recurrence(@issue1, date_limit: nil)
+    # a limit could forbid the renewal this test expects (count_limit may be 0)
+    ir = create_random_recurrence(@issue1, date_limit: nil, count_limit: nil)
 
     close_issue(@issue1)
-    travel_to([dates[:due_date] || dates[:start_date], Date.current].max) unless ir.reopen?
+    # random_dates may set no date at all; *_wday modes count a weekend date as
+    # the next working day, so go past a weekend
+    travel_to([dates[:due_date] || dates[:start_date] || Date.current,
+               Date.current].max + 3.days) unless ir.reopen?
 
     plugin_perms = Redmine::AccessControl.permissions
       .select{ |p| p.project_module == :issue_recurring }.map(&:name)
