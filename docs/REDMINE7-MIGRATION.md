@@ -156,7 +156,7 @@ a non-loopback address because Redmine refuses loopback targets).
   `:async` adapter, later jobs in the same rake process run in the caller thread (executor fallback), so
   chaining tasks still works.
 - OpenAI review (`.codex/openai_review.sh e6fae03`, gpt-5, 34 files): no findings
-  (`docs/reviews/openai-2026-10-06-b953bc5.md`).
+  (`docs/reviews/openai-2026-10-06-b953bc5.md`); again at `ded1808` (all session commits): no findings (`docs/reviews/openai-2026-10-06-ded1808.md`).
 
 ## Findings outside this plugin
 
