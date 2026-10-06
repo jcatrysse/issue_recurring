@@ -16,7 +16,10 @@ def load_patches
   # NOTE: remove when https://www.redmine.org/issues/37803 is fixed
   ActiveRecord::ConnectionAdapters::SchemaStatements
     .include IssueRecurring::SchemaStatementsPatch
-  ActiveRecord::Schema.prepend IssueRecurring::SchemaPatch
+  # Rails >= 7.0 loads schema.rb through ActiveRecord::Schema[x.y], a separate
+  # class that gets #define from ActiveRecord::Schema::Definition.
+  (defined?(ActiveRecord::Schema::Definition) ? ActiveRecord::Schema::Definition :
+    ActiveRecord::Schema).prepend IssueRecurring::SchemaPatch
   ActiveRecord::SchemaDumper.prepend IssueRecurring::SchemaDumperPatch
 
   Issue.include IssueRecurring::IssuePatch
