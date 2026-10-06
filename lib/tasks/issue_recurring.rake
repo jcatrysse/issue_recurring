@@ -9,6 +9,15 @@ namespace :redmine do
   namespace :issue_recurring do
     task :renew_all => :environment do
       Mailer.with_synched_deliveries { IssueRecurrence.renew_all }
+
+      # Redmine >= 7 queues webhooks of created/reopened issues as jobs. The
+      # :async adapter runs them inside this process: wait, or the last ones
+      # are lost when rake exits.
+      adapter = ActiveJob::Base.queue_adapter
+      if defined?(ActiveJob::QueueAdapters::AsyncAdapter) &&
+          adapter.is_a?(ActiveJob::QueueAdapters::AsyncAdapter)
+        adapter.shutdown(wait: true)
+      end
     end
   end
 
