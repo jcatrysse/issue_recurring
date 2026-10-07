@@ -56,7 +56,8 @@ fixtures only on Rails 7.1+). Session commits, in order:
 | `85dfd89`, `edf0dcc` | Decision q4: the `renew_all` test helper names the errors behind "Last issue is invalid", following invalid associations + `test/unit/renew_helper_test.rb` |
 | `fd6e793` | General decision: Redmine 5.1 fallbacks added on this branch removed |
 | `b1d16e0` | Found by the new e2e refusal path: an issue copy by a user without recurrence permissions failed with "Recurrences is invalid"; now copied without the recurrences + integration test |
-| (this update) | e2e: copy-issue for all users, plugin-version; plan |
+| `3e3c0a3` | Follow-up after the OpenAI review: the copy keeps exactly the recurrences whose own `editable?` check passes + integration test |
+| `e5c9088` and later | e2e (copy-issue for all users, plugin-version, combined run), plan, reviews |
 
 ## Work list for the migration session
 
@@ -152,7 +153,7 @@ Every screenshot of the PostgreSQL run was opened and looked at; MariaDB and bef
 
 | run | result |
 |---|---|
-| Plugin tests alone, at `b1d16e0` | 103 runs, 10842 assertions, 0 failures, 0 errors (seed 36248) |
+| Plugin tests alone, final at `3e3c0a3` | 104 runs, 10881 assertions, 0 failures, 0 errors (seed 45164) |
 | Plugin tests with 15 other GEOxyz plugins (`redmine70-migration` of custom_workflows, subtask, issue_templates, parent_child_filters, issue_view_columns, inline_edit_issues, tint_issues, depending_custom_fields, project_workflows, extended_api, issue_field_visibility, itil_priority, checklists, tags; without view_issue_description, see below) | final at `b1d16e0`: 103 runs, 0 failures, 0 errors (seed 27689); 8 more runs at `edf0dcc`: 102 runs, 0 failures, 0 errors each; the first run at `85dfd89` hit the intermittent error once (decision q4) |
 | With redmine_view_issue_description added | 26 failures: that plugin refuses issue show/update (403) without its new permission `view_issue_description`, which this plugin's test fixtures do not grant, so the test helpers' issue updates are refused. Not a defect of either plugin; a fixture/role matter |
 | e2e alone (`docs/e2e/`, fresh database) | smoke 14, core 6, 10 plugin scenarios 54 screenshots, 0 problems |
@@ -178,6 +179,12 @@ a non-loopback address because Redmine refuses loopback targets).
   chaining tasks still works.
 - OpenAI review (`.codex/openai_review.sh e6fae03`, gpt-5, 34 files): no findings
   (`docs/reviews/openai-2026-10-06-b953bc5.md`); again at `ded1808` (all session commits): no findings (`docs/reviews/openai-2026-10-06-ded1808.md`).
+- After Jan's decisions (range `3bee62c..e5c9088`, gpt-5): one finding, on the new issue-copy hook
+  (keep recurrences with manage permission alone). Not done as proposed (the recurrence's own
+  validation needs more), but it showed the hook only partly repeated that check: fixed in `3e3c0a3`
+  with a test; Resolution in `docs/reviews/openai-2026-10-07-e5c9088.md`. Second pass
+  (`3bee62c..a297523`): no findings. My own review of these commits: nothing else open; the new hook
+  also helps project copies into a project without the module (that issue copy failed before).
 
 ## Findings outside this plugin
 
@@ -229,7 +236,7 @@ merge only with the Redmine 7 upgrade (now the general decision).
 1. Copying an issue without recurrence permissions (`b1d16e0`, found by the new e2e refusal path):
    with "Copy recurrences on issue copy" on, a user who may copy issues but has no recurrence
    permissions could not copy at all ("Recurrences is invalid"), pre-existing since upstream. Built:
-   the copy is made without those recurrences. Options: (A) this, recommended, nobody loses anything;
+   the copy is made without the recurrences the user may not create (`b1d16e0`, `3e3c0a3`). Options: (A) this, recommended, nobody loses anything;
    (B) copy the recurrences anyway without checking the permission (lets a user create recurrences
    they may not manage); (C) refuse the copy as before.
 
