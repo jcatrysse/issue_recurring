@@ -48,5 +48,38 @@ await t.go(`/issues/${copyOfCopy}`);
 if (await p().locator('#issue_recurrences', { hasText: 'This is a recurrence of' }).count()) t.problems.push('copy of a recurrence says "recurrence of"');
 await t.shot('copy-of-recurrence', 'Copying an issue that is itself a recurrence: the copy is not marked "recurrence of"');
 
+// Admin: the same copy works for an administrator.
+await t.login('admin');
+const asAdmin = await copyIssue('admin');
+if (last(rails(`print IssueRecurrence.where(issue_id: ${asAdmin}).count`)) !== '1') t.problems.push('admin: recurrence not copied');
+await t.shot('admin', 'Admin, setting on: the copy gets the recurrence as well');
+
+// Reporter: core role without copy_issues, the copy form is refused.
+await t.login('reporter');
+await t.go(`/projects/e2e-project/issues/${ids.panel}/copy`, { status: 403 });
+await t.shot('reporter-refused', 'Reporter (no copy_issues): copying is refused (403)');
+
+// Reporter with copy_issues but without the plugin's permissions, setting on.
+rails("Role.find_by(name: 'Reporter').add_permission!(:copy_issues)");
+await t.login('reporter');
+await t.go(`/projects/e2e-project/issues/${ids.panel}/copy`);
+await p().fill('#issue_subject', 'Copy by a reporter with copy_issues');
+await p().click('#issue-form input[name=commit]');
+await t.settle();
+t.check('copy reporter');
+const reporterCopy = (p().url().match(/\/issues\/(\d+)$/) || [])[1];
+const errorText = await p().locator('#errorExplanation').innerText().catch(() => '');
+const reporterRecurrences = reporterCopy ? last(rails(`print IssueRecurrence.where(issue_id: ${reporterCopy}).count`)) : '-';
+console.log(`reporter copy: issue ${reporterCopy || 'not created'}, recurrences ${reporterRecurrences}, errors "${errorText.replace(/\s+/g, ' ')}"`);
+if (!reporterCopy || reporterRecurrences !== '0') t.problems.push('reporter with copy_issues: copy not made, or made with recurrences');
+if (await p().locator('#issue_recurrences').count()) t.problems.push('reporter sees the recurrences panel on the copy');
+await t.shot('reporter-copy-issues', `Reporter with copy_issues, no recurrence permission, setting on: issue ${reporterCopy ? '#' + reporterCopy + ' created with ' + reporterRecurrences + ' recurrence(s)' : 'not created: ' + errorText.replace(/\s+/g, ' ')}`);
+rails("Role.find_by(name: 'Reporter').remove_permission!(:copy_issues)");
+
+// Outsider: the private project's issue cannot be copied.
+await t.login('outsider');
+await t.go(`/projects/e2e-private/issues/${ids.private}/copy`, { status: 403 });
+await t.shot('outsider-refused', 'Outsider: copying an issue of the private project is refused (403)');
+
 reset();
 await t.done();
