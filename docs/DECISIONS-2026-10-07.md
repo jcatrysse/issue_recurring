@@ -33,3 +33,10 @@ What to do:
 7. Update Status, the inventory, the work list and "After the upgrade". Push `redmine70-migration` after every commit.
 8. These decisions are final; do not stop to ask about them. If one turns out to be impossible, write down why in the plan and carry on with the rest.
 9. End with a short report in Dutch: per decision what you did (commit), test numbers, e2e numbers (scenarios, screenshots, problems), the review result, what is left for Jan.
+
+## Round 2, decided by Jan on 2026-10-07 (evening)
+
+Jan answered these follow-up questions from the migration report the same way, one at a time, in the coordinating session.
+
+- issue_recurring-n2-1 (recurring 5): Staat 'herhalingen meekopiëren' aan, dan kon iemand die issues mag kopiëren maar geen rechten op herhalingen heeft, een issue helemaal niet kopiëren. Nu wordt de kopie gemaakt zonder die herhalingen. Hoe wil je het?
+  Jan chose: "Kopie zonder herhalingen" (De kopie lukt; alleen de herhalingen die de gebruiker niet mag beheren gaan niet mee. Zo is het gebouwd.). Already built: keep it and record the decision.
