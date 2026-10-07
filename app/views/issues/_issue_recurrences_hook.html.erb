@@ -3,7 +3,7 @@
   <div id="issue_recurrences">
     <div class="contextual">
       <% if User.current.allowed_to?(:manage_issue_recurrences, @project) %>
-        <%= link_to icon_with_label('add', t(:button_add)), new_issue_recurrence_path(@issue),
+        <%= link_to sprite_icon('add', t(:button_add)), new_issue_recurrence_path(@issue),
           remote: true, class: 'icon icon-add' %>
       <% end %>
     </div>

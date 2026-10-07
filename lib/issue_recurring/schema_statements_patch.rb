@@ -9,12 +9,7 @@ module IssueRecurring
         versions = plugin.migrations
         inserting = (versions - migrated).select { |v| v <= version }
         if inserting.any?
-          # Rails >= 7.1 has no ActiveRecord::SchemaMigration.create_table
-          if respond_to?(:pool) && pool.respond_to?(:schema_migration)
-            pool.schema_migration.create_table
-          else
-            ActiveRecord::SchemaMigration.create_table
-          end
+          pool.schema_migration.create_table
           execute insert_versions_sql(inserting.map! { |v| "#{v}-#{plugin_id}" })
         end
       end

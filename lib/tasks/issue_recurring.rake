@@ -14,10 +14,7 @@ namespace :redmine do
       # :async adapter runs them inside this process: wait, or the last ones
       # are lost when rake exits.
       adapter = ActiveJob::Base.queue_adapter
-      if defined?(ActiveJob::QueueAdapters::AsyncAdapter) &&
-          adapter.is_a?(ActiveJob::QueueAdapters::AsyncAdapter)
-        adapter.shutdown(wait: true)
-      end
+      adapter.shutdown(wait: true) if adapter.is_a?(ActiveJob::QueueAdapters::AsyncAdapter)
     end
   end
 
@@ -27,12 +24,7 @@ namespace :redmine do
       task :migration => "db:test:prepare" do |t|
         $: << "test"
         test_files = FileList["plugins/#{ENV['NAME'] || '*'}/test/migration/**/*_test.rb"]
-        # Rails >= 7.1 replaced rake_run with run_from_rake
-        if Rails::TestUnit::Runner.respond_to?(:run_from_rake)
-          Rails::TestUnit::Runner.run_from_rake 'test', test_files
-        else
-          Rails::TestUnit::Runner.rake_run test_files
-        end
+        Rails::TestUnit::Runner.run_from_rake 'test', test_files
       end
     end
   end

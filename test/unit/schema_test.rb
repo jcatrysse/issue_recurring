@@ -11,8 +11,7 @@ class SchemaTest < ActiveSupport::TestCase
   def test_schema_define_restores_plugin_migration_versions
     plugin = Redmine::Plugin.find('issue_recurring')
     expected = plugin.migrations.sort
-    schema = ActiveRecord::Schema.respond_to?(:[]) ?
-      ActiveRecord::Schema[ActiveRecord::Migration.current_version] : ActiveRecord::Schema
+    schema = ActiveRecord::Schema[ActiveRecord::Migration.current_version]
 
     delete_plugin_versions
     assert_equal [], plugin_versions
