@@ -22,6 +22,14 @@ module IssueRecurringTestCase
   def renew_all(count=0)
     assert_difference 'Issue.count', count do
       IssueRecurrence.renew_all(true)
+    rescue ActiveRecord::RecordInvalid => e
+      # "Last issue is invalid" shows up now and then without a known cause;
+      # name the issue's own errors (Jan, 2026-10-07, issue_recurring-q4)
+      issue = e.record.try(:last_issue)
+      raise if issue.nil?
+      issue.valid? if issue.errors.empty?
+      raise e.exception("#{e.message} (last issue ##{issue.id}:" \
+        " #{issue.errors.full_messages.to_sentence.presence || 'no errors when validated again'})")
     end
     count == 1 ? Issue.last : Issue.last(count)
   end
