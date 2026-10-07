@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (GEOxyz, Redmine 7)
+## 1.8.0-geoxyz [unreleased] (GEOxyz, Redmine 7)
 
 Requires Redmine 7.0 (Rails 8.1); does not run on Redmine 5.1 any more.
 
