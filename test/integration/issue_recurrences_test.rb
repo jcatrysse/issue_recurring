@@ -2845,6 +2845,27 @@ class IssueRecurrencesTest < IssueRecurringIntegrationTestCase
     end
   end
 
+  def test_copying_issue_without_recurrence_permissions_copies_no_recurrences
+    @issue1.update!(start_date: 10.days.ago, due_date: 5.days.ago)
+    create_recurrence(creation_mode: :copy_first)
+    logout_user
+    log_user 'admin', 'foo'
+    update_plugin_settings(copy_recurrences: true)
+    logout_user
+    log_user 'alice', 'foo'
+
+    plugin_perms = Redmine::AccessControl.permissions
+      .select { |p| p.project_module == :issue_recurring }.map(&:name)
+    roles = users(:alice).members.find_by(project: @project1).roles
+    roles.each { |role| role.remove_permission! *plugin_perms }
+
+    # The copy is made, without the recurrences the user may not create
+    assert_no_difference 'IssueRecurrence.count' do
+      issue_copy = copy_issue(@issue1, @project1)
+      assert_empty issue_copy.recurrences
+    end
+  end
+
   def test_copying_issue_applies_copy_recurrences_configuration_setting
     # NOTE: to be removed when system tests are working with all supported Redmine versions.
     # * corresponding system test: test_settings_copy_recurrences
