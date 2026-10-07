@@ -24,14 +24,27 @@ module IssueRecurringTestCase
       IssueRecurrence.renew_all(true)
     rescue ActiveRecord::RecordInvalid => e
       # "Last issue is invalid" shows up now and then without a known cause;
-      # name the issue's own errors (Jan, 2026-10-07, issue_recurring-q4)
-      issue = e.record.try(:last_issue)
-      raise if issue.nil?
-      issue.valid? if issue.errors.empty?
-      raise e.exception("#{e.message} (last issue ##{issue.id}:" \
-        " #{issue.errors.full_messages.to_sentence.presence || 'no errors when validated again'})")
+      # name the errors behind it (Jan, 2026-10-07, issue_recurring-q4)
+      raise e.exception("#{e.message} (#{invalid_records_description(e.record)})")
     end
     count == 1 ? Issue.last : Issue.last(count)
+  end
+
+  # Errors of a record and, for an associated record reported as invalid, of
+  # that record too: "Last issue is invalid" alone does not say why.
+  def invalid_records_description(record, depth = 0)
+    record.valid? if record.errors.empty?
+    label = "#{record.class.name} ##{record.id.inspect}"
+    return "#{label}: no errors when validated again" if record.errors.empty?
+
+    nested = record.errors.select { |error| error.type == :invalid }.filter_map do |error|
+      reflection = record.class.reflect_on_association(error.attribute)
+      associated = reflection && record.public_send(error.attribute)
+      next unless associated.is_a?(ActiveRecord::Base) && depth < 3
+
+      invalid_records_description(associated, depth + 1)
+    end
+    ["#{label}: #{record.errors.full_messages.to_sentence}", *nested].join('; ')
   end
 
   def random_datespan

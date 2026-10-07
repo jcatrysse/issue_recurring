@@ -30,8 +30,18 @@ class RenewHelperTest < ActiveSupport::TestCase
     e = unexpected.error
     assert_kind_of ActiveRecord::RecordInvalid, e
     assert_match(/Last issue is invalid/, e.message)
-    assert_match(/##{last_issue.id}.*Subject cannot be blank/, e.message)
+    assert_match(/Issue ##{last_issue.id}: Subject cannot be blank/, e.message)
     assert_same recurrence, e.record
+
+    # and one level further: the issue the last issue is a recurrence of
+    last_issue.subject = 'valid again'
+    first_issue = issues(:issue_03)
+    first_issue.subject = ''
+    last_issue.recurrence_of = first_issue
+    last_issue.errors.clear
+    last_issue.errors.add(:recurrence_of, :invalid)
+    e = assert_raises(Minitest::UnexpectedError) { renew_all(0) }.error
+    assert_match(/Recurrence of is invalid; Issue ##{first_issue.id}: Subject cannot be blank/, e.message)
   ensure
     IssueRecurrence.define_singleton_method(:renew_all, original) if original
   end
