@@ -37,14 +37,12 @@ module IssueRecurring
 
     module InstanceMethods
       # Recurrences copied along (setting copy_recurrences) are created by the
-      # user copying the issue; without the plugin's permissions in the target
-      # project they would make the whole copy invalid. Copy the issue without them.
+      # user copying the issue; those the user may not create (the same check as
+      # their validation) would make the whole copy invalid. Copy without them.
       def drop_recurrences_not_manageable
         return if recurrences.empty?
-        return if User.current.allowed_to?(:view_issue_recurrences, project) &&
-          User.current.allowed_to?(:manage_issue_recurrences, project)
 
-        self.recurrences = []
+        self.recurrences = recurrences.select(&:editable?)
       end
 
       def substitute_if_last_issue
