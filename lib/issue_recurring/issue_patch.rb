@@ -13,13 +13,14 @@ module IssueRecurring
 
       after_destroy :substitute_if_last_issue
 
-      alias_method :copy_from_without_recurrences, :copy_from
-      alias_method :copy_from, :copy_from_with_recurrences
+      # Other plugins patch #copy_from too; prepend, as alias_method mixed with
+      # their prepend recurses.
+      prepend CopyFromWithRecurrences
     end
 
-    module InstanceMethods
-      def copy_from_with_recurrences(arg, options={})
-        copy_from_without_recurrences(arg, options)
+    module CopyFromWithRecurrences
+      def copy_from(arg, options={})
+        super
 
         unless options[:skip_recurrences]
           self.recurrence_of = nil
@@ -31,7 +32,9 @@ module IssueRecurring
 
         self
       end
+    end
 
+    module InstanceMethods
       def substitute_if_last_issue
         return if self.recurrence_of.blank?
         r = self.recurrence_of.recurrences.find_by(last_issue: self)
