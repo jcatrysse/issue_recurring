@@ -4,7 +4,7 @@ Start a Claude Code (or Codex) session on this repository, branch `redmine70-mig
 
 > Read CLAUDE.md and docs/REDMINE7-MIGRATION.md, then carry out the Redmine 7 migration of this
 > plugin as described there, on branch redmine70-migration. That includes the plugin's tests on
-> PostgreSQL and MariaDB, every function exercised end to end on a real running Redmine in a
+> PostgreSQL (MariaDB no longer required, Jan 2026-10-07), every function exercised end to end on a real running Redmine in a
 > browser (with and without permissions, failure paths included) with screenshots you looked at,
 > and an OpenAI review of the diff when OPENAI_API_KEY is set. Report to me in Dutch at the end.
 
@@ -22,10 +22,11 @@ what is left. Written 2026-10-06 from a measured analysis (report at the bottom)
 | Upstream sync | UPSTREAM DOOD |
 | After sync | n.v.t. |
 | Complexity (1 trivial .. 5 rewrite) | 2 |
-| Measured on | Redmine 7.0.1 (7.0-stable-GEOxyz), Rails 8.1.3.1, Ruby 3.3.6, PostgreSQL 16.15 and MariaDB 10.11.14 |
-| Migration session | 2026-10-06/07, done: work list complete, tests and e2e green on both databases, OpenAI review without findings; one intermittent test error open (Open question 6) |
+| Measured on | Redmine 7.0.1 (7.0-stable-GEOxyz), Rails 8.1.3.1, Ruby 3.3.6, PostgreSQL 16.15 (MariaDB 10.11.14 before Jan's decision of 2026-10-07) |
+| Migration session | 2026-10-06/07, done; Jan's decisions of 2026-10-07 built the same day (see "Decided by Jan"). Tests and e2e green on PostgreSQL, alone and with 15 other GEOxyz plugins; one intermittent test error still under observation (decision q4) |
+| Version | `1.8.0-geoxyz` (decision q3) |
 | Branch head when this file was last updated | see `git log` (the commit that changes this file) |
-| Deploy | only together with the Redmine 7 upgrade: the branch needs Rails >= 7.0 (`enum :x` form) |
+| Deploy | `redmine70-migration` goes live with Redmine 7; nothing is cherry-picked to `master` (Jan, 2026-10-07) |
 
 ## Already on this branch
 
@@ -48,6 +49,14 @@ fixtures only on Rails 7.1+). Session commits, in order:
 | `b953bc5` | CHANGELOG, README compatibility row |
 | `6aa1a18` | OpenAI review report (no findings) |
 | `3e0926a` | `test_renew_even_when_issue_author_has_no_permission_granted` made deterministic (3 random failure cases, pre-existing) |
+| `ded1808`, `3bee62c` | plan results, second OpenAI review |
+| `8aea260` | Jan's decisions of 2026-10-07 (`docs/DECISIONS-2026-10-07.md`, by the coordinating session) |
+| `75ccd29` | General decision: `Issue#copy_from` patched with `prepend` instead of `alias_method` + `test/unit/issue_patch_test.rb` |
+| `2c02ee0` | Decision q3: version `1.8.0-geoxyz` + `test/unit/plugin_test.rb` |
+| `85dfd89`, `edf0dcc` | Decision q4: the `renew_all` test helper names the errors behind "Last issue is invalid", following invalid associations + `test/unit/renew_helper_test.rb` |
+| `fd6e793` | General decision: Redmine 5.1 fallbacks added on this branch removed |
+| `b1d16e0` | Found by the new e2e refusal path: an issue copy by a user without recurrence permissions failed with "Recurrences is invalid"; now copied without the recurrences + integration test |
+| (this update) | e2e: copy-issue for all users, plugin-version; plan |
 
 ## Work list for the migration session
 
@@ -100,7 +109,8 @@ rake tasks. Scenarios in `test/e2e/`, screenshots and tables in `docs/e2e/<scena
 | Project tab "Issue recurrences" (`index`, menu item) | project menu | `project-recurrences.mjs` | `project-recurrences-*` (list, empty state, delete from list, reporter no tab + 403, outsider 403, anonymous to login, unknown project 404) |
 | Plugin settings (author, keep assignee, journal mode, copy recurrences, copy relation types, renew ahead) | Administration > Plugins > Configure | `plugin-settings.mjs` | `plugin-settings-*` (defaults, negative refused by form, saved, hand-made POST with unknown values stored as defaults, manager 403) |
 | Renewal: cron `rake redmine:issue_recurring:renew_all` (copies, reopen, "recurrence of", mails, webhooks, copy relations, journal on reopen, second run idempotent) | cron | `renew.mjs` | `renew-*` |
-| Copy recurrences on issue copy (setting), copies never keep "recurrence of" | issue > Copy | `copy-issue.mjs` | `copy-issue-*` |
+| Copy recurrences on issue copy (setting), copies never keep "recurrence of"; `Issue#copy_from` patched with prepend | issue > Copy | `copy-issue.mjs` | `copy-issue-*` (setting off/on, copy of a recurrence, admin, reporter refused without copy_issues, reporter with copy_issues: copy without recurrences, outsider 403) |
+| Plugin version 1.8.0-geoxyz (decision q3) | Administration > Plugins | `plugin-version.mjs` | `plugin-version-*` (admin, manager/reporter/outsider 403) |
 | REST API: none of its own; core issue API with a recurrence, plugin route not an API | API | `rest-api.mjs` | `rest-api-issue-json.png` |
 | Migrations 001-008, down and up | `redmine:plugins:migrate` | command | see "Results" |
 | Dev task `redmine:plugins:test:migration` | rake | command | see work item 2 |
@@ -138,6 +148,17 @@ End to end, Redmine 7.0-stable-GEOxyz in production mode, fresh database each ti
 
 Every screenshot of the PostgreSQL run was opened and looked at; MariaDB and before spot-checked.
 
+### After Jan's decisions (2026-10-07, PostgreSQL 16 only)
+
+| run | result |
+|---|---|
+| Plugin tests alone, at `b1d16e0` | 103 runs, 10842 assertions, 0 failures, 0 errors (seed 36248) |
+| Plugin tests with 15 other GEOxyz plugins (`redmine70-migration` of custom_workflows, subtask, issue_templates, parent_child_filters, issue_view_columns, inline_edit_issues, tint_issues, depending_custom_fields, project_workflows, extended_api, issue_field_visibility, itil_priority, checklists, tags; without view_issue_description, see below) | final at `b1d16e0`: 103 runs, 0 failures, 0 errors (seed 27689); 8 more runs at `edf0dcc`: 102 runs, 0 failures, 0 errors each; the first run at `85dfd89` hit the intermittent error once (decision q4) |
+| With redmine_view_issue_description added | 26 failures: that plugin refuses issue show/update (403) without its new permission `view_issue_description`, which this plugin's test fixtures do not grant, so the test helpers' issue updates are refused. Not a defect of either plugin; a fixture/role matter |
+| e2e alone (`docs/e2e/`, fresh database) | smoke 14, core 6, 10 plugin scenarios 54 screenshots, 0 problems |
+| e2e with all 16 plugins (`docs/e2e/combined/`, fresh database) | 74 screenshots, 8 problems, none from this plugin: Project > Settings HTTP 500 from `redmine_depending_custom_fields` (`undefined method dcf_relevant_custom_fields` in its own settings tab; the same 500 with issue_recurring removed); issue pages 403 for reporter and the issue JSON 403 for manager from `redmine_view_issue_description` (its permission is not granted to the seeded roles) |
+| Jan's check: Project > Settings, issue list, issue page with the other plugins | with all plugins but depending_custom_fields: admin and manager get 200 on `/projects/e2e-project/settings`, `/projects/e2e-project/issues`, `/issues/7` and the recurrences tab |
+
 ## Webhooks
 
 Redmine 7 sends `issue.created`/`issue.updated` from model callbacks, so issues created or reopened by
@@ -166,30 +187,51 @@ a non-loopback address because Redmine refuses loopback targets).
   `config/additional_environment.rb`) or a core fix.
 - `.codex/e2e.sh` also runs `test/e2e/helpers.mjs` as a scenario (it does nothing); harmless.
 
+## Decided by Jan
+
+Answered by Jan on 2026-10-07 in the coordinating session (recorded in `docs/DECISIONS-2026-10-07.md`).
+
+General, for every GEOxyz plugin:
+- Straight to Redmine 7, no backports to 5.1; nothing is cherry-picked to the default branch or to
+  the branch production runs today. 5.1 compatibility is no longer a requirement. Done here: the 5.1
+  fallbacks this branch had added are removed (`fd6e793`); the rules below are updated.
+- PostgreSQL 16 only (GEOxyz uses no MariaDB/MySQL). Tests and e2e run on PostgreSQL; the earlier
+  MariaDB runs stay as history (`docs/e2e/mariadb/`), MariaDB-only problems would be a note, not a blocker.
+- deface without a version constraint: this plugin does not use deface, nothing to do.
+- A core method other plugins also patch is patched with `prepend`, never `alias_method`: this
+  plugin chained `Issue#copy_from` with `alias_method`; now `prepend` (`75ccd29`), with a test.
+  Project > Settings, the issue list and an issue page answer 200 with 15 other GEOxyz plugins
+  installed (see "Results").
+- GitHub Actions stay manual only: unchanged (`workflow_dispatch` only).
+
+For this plugin:
+1. issue_recurring-q1, lost relations in production: Jan chose B, "Het verlies aanvaarden" (Geen werk,
+   maar de gewiste relaties tussen issues blijven weg.). Recorded; no restore. The code fix stays (`f915734`).
+2. issue_recurring-q2, real job backend for all of Redmine: Jan chose A, "Alleen de plugin-fix, de
+   rest later apart bekijken" (Deze plugin verliest geen webhooks meer; de mailtaken van Redmine zelf
+   kunnen dat nog wel, als webhooks gebruikt worden.). The plugin fix stays (`7649185`); the core mail
+   tasks stay a finding outside this plugin.
+3. issue_recurring-q3, version: Jan chose B, "1.8.0-geoxyz" (Toont duidelijker dat het een eigen
+   GEOxyz-versie is.). Done in `2c02ee0` (init.rb, CHANGELOG, README), with a test.
+4. issue_recurring-q4, the intermittent test: Jan chose A, "Zo laten, bij de volgende keer meer info
+   verzamelen" (Geen werk nu; duikt de fout weer op, dan wordt de foutinformatie van het issue afgedrukt
+   om de oorzaak te vinden.). Built in `85dfd89`/`edf0dcc`: the `renew_all` test helper now adds the
+   errors behind "Last issue is invalid". It caught the failure on its first run with the other
+   plugins: "Last issue is invalid (... Recurrence of is invalid)", i.e. the original issue the copy
+   points to is the invalid record; the helper now follows that association too. Status of the
+   next occurrence: see "Results".
+
+Earlier recommendations taken over without a separate question: success notices kept (`c96b054`),
+merge only with the Redmine 7 upgrade (now the general decision).
+
 ## Open questions for Jan
 
-1. Success notices (`c96b054`): users see "New issue recurrence created/updated/deleted" again, as
-   upstream did before 241424b. Options: keep (recommended, restores lost behaviour, no core page
-   affected) or drop the commit.
-2. Lost relations in production (`f915734`): since 1.7.2 (2025-10-31) every renewal of a "reopen"
-   recurrence deleted the relations of that issue whose type was not selected in "Copy relations"
-   (default: all). The removals were not journaled, so only a backup from before 2025-10-31 shows
-   them (SQL under "After the upgrade"). Options: compare with a backup and restore by hand
-   (recommended), or accept the loss.
-3. Webhooks of the cron task (`7649185`): kept in the plugin. Alternative: a real job backend for the
-   whole Redmine, which also covers core's mail-receiving tasks. Recommendation: keep the plugin fix and
-   decide the backend for all of Redmine.
-4. Version number: still `1.7.2` in `init.rb`; recommend `1.7.3` (or `1.8.0-geoxyz`) when merging.
-5. 5.1 compatibility: the branch does not run on 5.1 (enum syntax, as the analysis said); recommended:
-   merge to `master` only together with the Redmine 7 upgrade.
-6. Intermittent test error: `test_renew_anchor_mode_fixed_one_issue_date_not_set` failed twice in
-   about 45 full runs (`ActiveRecord::RecordInvalid: Last issue is invalid` at
-   `self.save!(context: :renew)` in `IssueRecurrence#create`), once with and once without the other
-   plugins (seeds 14709 and 43056). Not reproduced with the same seeds, under CPU load, after migrating
-   the test DB down and up, nor in 10 more full runs with a debug print of the issue's errors. The test
-   itself is deterministic (fixed dates). Not fixed, because the cause is unknown; no production
-   symptom known. Recommendation: keep the debug idea (print `new_issue.errors` before that `save!`)
-   for the next time it shows up, in CI or in the coordinator's harness.
+1. Copying an issue without recurrence permissions (`b1d16e0`, found by the new e2e refusal path):
+   with "Copy recurrences on issue copy" on, a user who may copy issues but has no recurrence
+   permissions could not copy at all ("Recurrences is invalid"), pre-existing since upstream. Built:
+   the copy is made without those recurrences. Options: (A) this, recommended, nobody loses anything;
+   (B) copy the recurrences anyway without checking the permission (lets a user create recurrences
+   they may not manage); (C) refuse the copy as before.
 
 ## After the upgrade (production)
 
@@ -203,17 +245,9 @@ Actions the person doing the upgrade must take, or know about, for this plugin:
   `12 6 * * * cd /var/lib/redmine && RAILS_ENV=production bundle exec rake redmine:issue_recurring:renew_all >> log/cron-issue_recurring.log 2>&1`
   (`bin/rails redmine:issue_recurring:renew_all` works as well).
 - If Redmine 7 webhooks are used: nothing to do, the task now waits for its webhook jobs.
-- Relations lost to the reopen bug (Open question 2). The removals were not journaled (checked on
-  5.1 + master with journal mode "never" and "on reopen": no journal detail), so they can only be found
-  by comparing with a database backup from before 1.7.2 was deployed (2025-10-31):
-  ```sql
-  -- production: issues renewed by reopening
-  SELECT issue_id FROM issue_recurrences WHERE creation_mode = 2;
-  -- backup and production: their relations; rows only in the backup were deleted
-  SELECT id, issue_from_id, issue_to_id, relation_type, delay FROM issue_relations
-   WHERE issue_from_id IN (<ids>) OR issue_to_id IN (<ids>) ORDER BY id;
-  ```
-  Relations added and removed by people after the backup show up too: check before restoring.
+- Relations lost to the reopen bug between 2025-10-31 and the upgrade: not restored, Jan accepted the
+  loss (decision q1, 2026-10-07). From 1.8.0-geoxyz on, reopen renewals keep the issue's relations.
+- The version shown in Administration > Plugins becomes `1.8.0-geoxyz` (decision q3).
 
 ## How to test
 
@@ -246,7 +280,7 @@ results quoted in the analysis come from it.
 1. **Start**: `git fetch && git checkout redmine70-migration && git pull`. Read this whole file,
    including the analysis report at the bottom. Do not reopen decisions recorded here.
 2. **Baseline, before you change anything**:
-   - the plugin's tests on Redmine 7.0-stable-GEOxyz with PostgreSQL and with MariaDB;
+   - the plugin's tests on Redmine 7.0-stable-GEOxyz with PostgreSQL (MariaDB no longer required, Jan 2026-10-07);
    - a real running Redmine with this plugin (`./.codex/start_server.sh`) and the browser run
      (`./.codex/e2e.sh`: smoke over every page the plugin adds, plus the core issue flows).
    Write the numbers here. Something already broken now is a finding, not your regression.
@@ -260,7 +294,8 @@ results quoted in the analysis come from it.
 5. **Work list**: then the numbered list, in order. One concern per commit.
 6. **Portability**: everything must run on Redmine's supported databases (PostgreSQL,
    MySQL/MariaDB; SQLite where the plugin already supports it). Migrations must be reversible and
-   are run down and up on PostgreSQL and MariaDB.
+   are run down and up on PostgreSQL. Jan, 2026-10-07: GEOxyz runs PostgreSQL 16 only; keep SQL
+   portable where it costs nothing, a MariaDB-only problem is a note, not a blocker.
 7. **Together**: run with the other GEOxyz plugins installed (the migration kit's harness, or
    `RMP_EXTRA_PLUGINS`). A failure that only appears in combination is a finding to record here.
 8. **End to end, visually, every function**: on the real Redmine from `start_server.sh`
@@ -279,7 +314,7 @@ results quoted in the analysis come from it.
      reads them; API through `t.page.request`) and record command and result.
    - Before pictures where behaviour or layout changes: the branch GEOxyz runs today, on
      Redmine 5.1, same scenarios, `RMP_E2E_OUT=docs/e2e/before`.
-   - Run the whole e2e set once on MariaDB as well (`RMP_DB=mariadb`, then `start_server.sh --reset`).
+   - MariaDB e2e runs are no longer required (Jan, 2026-10-07).
 9. **Independent review**: first your own, adversarial: re-read the whole diff as if someone
    else wrote it and you are paid to reject it. Then, **when `OPENAI_API_KEY` is set in the
    session**, `./.codex/openai_review.sh`: it sends the diff of this branch to an OpenAI model
@@ -324,8 +359,10 @@ results quoted in the analysis come from it.
   (on by default: `t.sudo()` in a scenario). The breaker list is in the migration kit's CHECKLIST.md.
 - **Locales**: keep the locales the plugin ships in sync; translate a new key by matching the
   closest existing key in the same file, not from scratch; do not add new languages.
-- **5.1 compatibility**: prefer fixes that also run on Redmine 5.1 so they can be merged early;
-  say so when a fix cannot.
+- **No 5.1** (Jan, 2026-10-07): GEOxyz goes straight to Redmine 7; no backports, nothing cherry-picked
+  to the default branch; no code paths that exist only for 5.1.
+- **Patching core**: a core method that other plugins also patch is patched with `prepend`, never
+  `alias_method` (Jan, 2026-10-07).
 - **Git**: work on `redmine70-migration` only; never push to the default branch; never force-push
   a branch someone else uses. Descriptive commit messages (what and why). Push after every
   commit, together with the updated status in this file: a cloud session can stop at a usage
@@ -336,7 +373,7 @@ results quoted in the analysis come from it.
 ## Definition of done
 
 - All items of the work list are done or explicitly deferred with a reason, in this file.
-- The plugin's tests are green on Redmine 7.0-stable-GEOxyz with PostgreSQL and MariaDB
+- The plugin's tests are green on Redmine 7.0-stable-GEOxyz with PostgreSQL
   (numbers in this file); boot, production-like eager load, migrations up/down OK.
 - Every function in the inventory exercised end to end on a real running Redmine, with and
   without permissions and on its failure paths; `./.codex/e2e.sh` green; screenshots looked at,
