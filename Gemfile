@@ -4,7 +4,7 @@ group :development do
 end
 
 group :development, :test do
-  gem 'rails-controller-testing'
+  gem 'rails-controller-testing' unless dependencies.any? { |d| d.name == 'rails-controller-testing' }
   gem 'byebug'
 end
 
