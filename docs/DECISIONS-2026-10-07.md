@@ -40,3 +40,9 @@ Jan answered these follow-up questions from the migration report the same way, o
 
 - issue_recurring-n2-1 (recurring 5): Staat 'herhalingen meekopiëren' aan, dan kon iemand die issues mag kopiëren maar geen rechten op herhalingen heeft, een issue helemaal niet kopiëren. Nu wordt de kopie gemaakt zonder die herhalingen. Hoe wil je het?
   Jan chose: "Kopie zonder herhalingen" (De kopie lukt; alleen de herhalingen die de gebruiker niet mag beheren gaan niet mee. Zo is het gebouwd.). Already built: keep it and record the decision.
+
+## Round 6, 2026-10-12: the follow-up points of the plan
+
+Jan answered the open points this session recorded in docs/REDMINE7-MIGRATION.md after the earlier rounds, one by one in the coordinating session.
+
+- Copying an issue without recurrence permissions (`b1d16e0`, `3e3c0a3`): **A**, the copy is made without the recurrences the user may not create. Built; nothing to change.
