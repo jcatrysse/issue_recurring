@@ -239,6 +239,7 @@ merge only with the Redmine 7 upgrade (now the general decision).
    the copy is made without the recurrences the user may not create (`b1d16e0`, `3e3c0a3`). Options: (A) this, recommended, nobody loses anything;
    (B) copy the recurrences anyway without checking the permission (lets a user create recurrences
    they may not manage); (C) refuse the copy as before.
+   **Decided by Jan, 2026-10-12: (A)** (round 6 in `docs/DECISIONS-2026-10-07.md`).
 
 ## After the upgrade (production)
 
