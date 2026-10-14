@@ -14,4 +14,15 @@ class FixturesTest < ActiveSupport::TestCase
       User.anonymous.roles.to_a
     end
   end
+
+  # redmine_view_issue_description refuses issue pages (403) to roles without
+  # its permission; the test roles that view issues have it when installed.
+  def test_roles_viewing_issues_may_view_descriptions_when_that_plugin_is_installed
+    installed = Redmine::Plugin.installed?(:redmine_view_issue_description)
+    roles = Role.where(builtin: [0, 1, 2]).select { |role| role.has_permission?(:view_issues) }
+    assert_equal 5, roles.size
+    roles.each do |role|
+      assert_equal installed, role.has_permission?(:view_issue_description), role.name
+    end
+  end
 end
