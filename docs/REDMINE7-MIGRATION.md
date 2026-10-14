@@ -160,6 +160,20 @@ Every screenshot of the PostgreSQL run was opened and looked at; MariaDB and bef
 | e2e with all 16 plugins (`docs/e2e/combined/`, fresh database) | 74 screenshots, 8 problems, none from this plugin: Project > Settings HTTP 500 from `redmine_depending_custom_fields` (`undefined method dcf_relevant_custom_fields` in its own settings tab; the same 500 with issue_recurring removed); issue pages 403 for reporter and the issue JSON 403 for manager from `redmine_view_issue_description` (its permission is not granted to the seeded roles) |
 | Jan's check: Project > Settings, issue list, issue page with the other plugins | with all plugins but depending_custom_fields: admin and manager get 200 on `/projects/e2e-project/settings`, `/projects/e2e-project/issues`, `/issues/7` and the recurrences tab |
 
+### Combined run of 2026-10-14 (44 GEOxyz plugins, reported by the coordinating session)
+
+| finding | fix | evidence |
+|---|---|---|
+| 86 of 104 tests HTTP 500 at login: the plugin's `users.yml` lacked the builtin groups, core `User#roles` did `GroupNonMember.first.id` on nil (reached through redmine_contacts' menu condition) | `b3e7b0d`: GroupNonMember/GroupAnonymous rows as in core's fixtures + `test/unit/fixtures_test.rb` | old fixtures in an install with redmine_contacts: 500 at login; new: green |
+| With redmine_view_issue_description installed, issue updates in the test helpers refused (403) | `1da9d7b`: fixture roles that view issues get `view_issue_description` when that plugin is installed + test | fixture test fails without it in that install (Expected: true) |
+| Harness H6: `start_server.sh` wrote `email_delivery` under `default:`, applied to the test environment too | `b88590e`: written for `$RMP_SERVER_ENV`, old generated file replaced | test env delivery_method `file` before, `test` after |
+
+Suite at `b88590e`: alone 106 runs, 10888 assertions, 0 failures, 0 errors; with 16 other GEOxyz plugins
+on their latest `redmine70-migration` (custom_workflows, subtask, issue_templates, parent_child_filters,
+issue_view_columns, inline_edit_issues, tint_issues, depending_custom_fields, project_workflows,
+extended_api, issue_field_visibility, itil_priority, checklists, tags, contacts, view_issue_description):
+106 runs, 0 failures, 0 errors; the same without view_issue_description: 106 runs, 0 failures, 0 errors.
+
 ## Webhooks
 
 Redmine 7 sends `issue.created`/`issue.updated` from model callbacks, so issues created or reopened by
