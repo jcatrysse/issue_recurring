@@ -74,16 +74,24 @@ if [ "$adapter" = mysql2 ] && command -v mysql >/dev/null 2>&1; then
     mysql -h "$host" -P "$port" -uroot -p"$password" -e "$grant" 2>/dev/null || true
 fi
 
-if [ ! -f "$REDMINE_DIR/config/configuration.yml" ]; then
+# Only for the server environment: Redmine applies a "default:" section to
+# every environment, the test environment included. A file an older version of
+# this script wrote under "default:" is replaced.
+conf="$REDMINE_DIR/config/configuration.yml"
+if [ -f "$conf" ] && grep -q '^default:' "$conf" && grep -q "location: $REDMINE_DIR/tmp/mails" "$conf" &&
+   [ "$(grep -c '' "$conf")" -le 6 ]; then
+  rm -f "$conf"
+fi
+if [ ! -f "$conf" ]; then
   mkdir -p "$REDMINE_DIR/tmp/mails"
-  cat > "$REDMINE_DIR/config/configuration.yml" <<YAML
-default:
+  cat > "$conf" <<YAML
+$RMP_SERVER_ENV:
   email_delivery:
     delivery_method: :file
     file_settings:
       location: $REDMINE_DIR/tmp/mails
 YAML
-  echo "config/configuration.yml: mail goes to tmp/mails"
+  echo "config/configuration.yml: mail of the $RMP_SERVER_ENV environment goes to tmp/mails"
 fi
 
 [ -f "$REDMINE_DIR/config/initializers/secret_token.rb" ] || run bundle exec rake generate_secret_token
