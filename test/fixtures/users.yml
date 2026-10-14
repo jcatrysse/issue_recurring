@@ -29,3 +29,15 @@ gopher:
 admin:
   <<: *DEFAULTS
   admin: true
+
+# Builtin groups, as in core's users.yml: User#roles needs them for users
+# without a membership
+groups_non_member:
+  lastname: Non member users
+  type: GroupNonMember
+  status: 1
+
+groups_anonymous:
+  lastname: Anonymous users
+  type: GroupAnonymous
+  status: 1
