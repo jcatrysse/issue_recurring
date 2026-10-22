@@ -29,6 +29,10 @@ def load_patches
 
   Project.include IssueRecurring::ProjectPatch
 
+  # Other plugins patch these classes too; prepend composes with them.
+  TimeEntryQuery.prepend IssueRecurring::TimeEntryQueryPatch
+  Redmine::Helpers::TimeReport.prepend IssueRecurring::TimeReportPatch
+
   SettingsHelper.include IssueRecurring::SettingsHelperPatch
   SettingsController.include IssueRecurring::SettingsControllerPatch
 end
