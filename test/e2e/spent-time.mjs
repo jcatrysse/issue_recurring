@@ -150,13 +150,21 @@ await t.shot('issue-list-series', 'Issues filtered on one recurring issue: every
 // 7. Issue list grouped by Recurrence of.
 await t.go('/projects/e2e-project/issues?set_filter=1&f[]=status_id&op[status_id]=*&f[]=recurrence_of&op[recurrence_of]=*' +
   '&c[]=subject&c[]=estimated_hours&c[]=spent_hours&t[]=estimated_hours&t[]=spent_hours&group_by=recurrence_of');
-await expect('issue list groups', (await t.page.locator('tr.group').count()) === 2);
+// Other scenarios may have left series of their own: check these two groups.
+const group = id => `tr.group:has(span.name a[href="/issues/${id}"])`;
+await expect('issue list groups',
+  (await text(`${group(ids.monthly)} span.count`)) === '7' &&
+  (await text(`${group(ids.weekly)} span.count`)) === '4' &&
+  (await text(`${group(ids.monthly)} .total-for-spent-hours .value`)) === '14.50');
 await t.shot('issue-list-grouped', 'Issues grouped by "Recurrence of": a count and estimated/spent totals per series');
 
 // 8. Time entry list grouped by Recurrence of.
 await t.go('/projects/e2e-project/time_entries?set_filter=1&f[]=spent_on&op[spent_on]=*' +
   '&c[]=spent_on&c[]=user&c[]=issue&c[]=recurrence_of&c[]=hours&t[]=hours&group_by=recurrence_of');
-await expect('time entry groups', (await t.page.locator('tr.group').count()) === 3);
+await expect('time entry groups',
+  (await text(`${group(ids.monthly)} span.count`)) === '7' &&
+  (await text(`${group(ids.weekly)} span.count`)) === '4' &&
+  (await text(`${group(ids.monthly)} .total-for-hours .value`)) === '14.50');
 await t.shot('time-entries-grouped', 'Spent time grouped by "Recurrence of": both series and the time outside any series, with totals');
 
 // 9. CSV of the report and the REST API.
