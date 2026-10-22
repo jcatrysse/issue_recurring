@@ -58,7 +58,7 @@ fixtures only on Rails 7.1+). Session commits, in order:
 | `b1d16e0` | Found by the new e2e refusal path: an issue copy by a user without recurrence permissions failed with "Recurrences is invalid"; now copied without the recurrences + integration test |
 | `3e3c0a3` | Follow-up after the OpenAI review: the copy keeps exactly the recurrences whose own `editable?` check passes + integration test |
 | `e5c9088` and later | e2e (copy-issue for all users, plugin-version, combined run), plan, reviews |
-| `d1aa81c`..`e46c157` | New feature (Jan, 2026-10-22): spent and estimated time over a recurring issue and its recurrences; plan, numbers and review in `docs/SPENT-TIME.md`, also on `spent-time-master` for `master` |
+| `d1aa81c`..`2a4960c` | New feature (Jan, 2026-10-22): spent and estimated time over a recurring issue and its recurrences; plan, numbers, review and combined run with 39 other GEOxyz plugins in `docs/SPENT-TIME.md`, also on `spent-time-master` for `master` |
 
 ## Work list for the migration session
 

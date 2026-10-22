@@ -52,13 +52,49 @@ Phases 1 and 2 are built, on both branches, with the same code apart from one te
 
 | | `spent-time-master` (from `master`, Jan merges it) | `redmine70-migration` |
 |---|---|---|
-| Feature commits | `39893d4` `c1b3c89` `ac9ce8f` `4138dbf` `c43bfae` `cc73f43` `4e1817f` | `d1aa81c` `f6a45dc` `7825dd5` `3b5f8ff` `0b36c13` `e56282b` `5461190` `e46c157` |
+| Feature commits | `39893d4` `c1b3c89` `ac9ce8f` `4138dbf` `c43bfae` `cc73f43` `4e1817f` `20c6e40` | `d1aa81c` `f6a45dc` `7825dd5` `3b5f8ff` `0b36c13` `e56282b` `5461190` `e46c157` `1bf504e` |
 | Redmine measured on | 5.1-stable-GEOxyz (5.1.13, Rails 6.1, Ruby 3.2.6), PostgreSQL 16.15 | 7.0-stable-GEOxyz (Rails 8.1, Ruby 3.3.6), PostgreSQL 16.15 |
 | Plugin tests before | 91 runs, 91 errors as `master` is; 91 runs, 9029 assertions, 0 failures after `6a17ef8` (below) | 106 runs, 10888 assertions, 0 failures, 0 errors |
-| Plugin tests after | 134 runs, 9298 assertions, 0 failures, 0 errors (seed 57916) | 149 runs, 11193 assertions, 0 failures, 0 errors (seed 25970) |
-| New tests | 43 (17 unit, 26 integration); 15 of the first 18 red without the feature, the 2 visibility tests red before the review fix | same 43 |
+| Plugin tests after | 135 runs, 9297 assertions, 0 failures, 1 error (seed 59026, the q4 test, see below); the run before at 134 tests: 0 failures, 0 errors (seed 57916) | 150 runs, 11199 assertions, 0 failures, 0 errors (seed 51410); with the 39 other plugins the same (seed 7399) |
+| New tests | 44 (17 unit, 27 integration); 15 of the first 18 red without the feature, the 2 visibility tests red before the review fix, the 0.00 link test red before `20c6e40` | same 44 |
 | End to end, real Redmine, production mode | `docs/e2e/redmine51/spent-time.md`: 14 screenshots, 0 problems; before: `docs/e2e/before/spent-time-before.md`, 11 screenshots (`master` without the feature) | `docs/e2e/spent-time.md`: 14 screenshots, 0 problems |
 | Review | independent Claude review, 12 findings, all resolved: `docs/reviews/claude-2026-10-22-spent-time.md`; OpenAI review (gpt-5) of `d4815ee..5ad616c`: no findings, `docs/reviews/openai-2026-10-22-5ad616c.md` | same code |
+
+Combined run (2026-10-22, Jan asked for it): Redmine 7.0-stable-GEOxyz with this plugin and the 39
+other GEOxyz plugins that have a `redmine70-migration` branch (agile, ai_summary, ai_triage,
+checklists, computed_custom_field, contacts, contacts_helpdesk, context_menu_actions,
+custom_workflows, depending_custom_fields, description_macros, drawio, editauthor, extended_api,
+impersonate, inline_edit_issues, issue_field_visibility, issue_templates, issue_todo_lists2,
+issue_view_columns, itil_priority, ldap_sync, mail_digest, mermaid_macro, more_previews,
+parent_child_filters, paste_as_wiki_tables, people, project_workflows, reporter_dashboards, stealth,
+subtask, tags, tint_issues, user_specific_theme, view_customize, view_issue_description,
+wiki_extensions, zenedit). Without such a branch, not included: resources, reporter, drive,
+questions, datetime_custom_field, issue_trash, wiki_custom_fields, helpdesk_contact_sync, xapian,
+ai_helper, email-oauth.
+
+- Plugins extending the same core classes, all with `prepend`, none with `alias_method` on these
+  methods (the three TimeReport patches read: they call `super` and return the criteria): TimeReport (contacts, contacts_helpdesk, tags), TimeEntryQuery (tags), IssueQuery
+  (agile, checklists, contacts_helpdesk, issue_field_visibility, issue_todo_lists2, itil_priority,
+  parent_child_filters, tags, view_issue_description, zenedit). The report shows "Recurrence of"
+  next to their criteria.
+- Plugin tests in that install: 150 runs, 11199 assertions, 0 failures, 0 errors (seed 7399), the
+  same as alone (150 runs, 11199 assertions, 0 failures, seed 51410).
+- Browser, first full run (smoke, core flows, every scenario): every problem but one came from
+  `redmine_view_issue_description` (issue pages 403 for the reporter, who lacks its permission;
+  issue JSON 403 for the manager), as recorded on 2026-10-07. The one other: `spent-time.mjs`
+  counted all groups of the issue list, and the other scenarios had left series of their own; the
+  grouping itself was right, the check now looks at its own two series (`2a4960c`).
+- Second run, with `view_issue_description` granted to the reporter: smoke, core flows,
+  add/edit/delete-recurrence, issue-panel, plugin-settings, plugin-version, project-recurrences 0
+  problems; `copy-issue` 1, because the first run had stopped before taking `copy_issues` back from
+  the reporter (0 problems on its rerun); `rest-api` the manager's issue JSON 403 (same plugin);
+  `renew` stopped by my own time limit (see the harness note below; it passed in the first run);
+  `spent-time.mjs` 14 screenshots, 0 problems, looked at.
+- Found and fixed: the module tab linked "0.00" to an empty list; core links spent time only above
+  zero (`20c6e40` on `spent-time-master`, `1bf504e` here).
+- Harness, not this feature: `renew.mjs` answers webhooks in the Node process that waits for
+  `rake renew_all` with `execSync`, so every webhook waits for its 60 s timeout; with the data of
+  several runs in one database the scenario takes very long. It passed in the first combined run.
 
 Found on the way, outside this feature:
 - `master`'s tests did not run at all on Redmine 5.1.13 (core declares `fixtures :all`; 91 errors);
@@ -67,12 +103,13 @@ Found on the way, outside this feature:
 - `master`'s rakefile boots the app in development, so `rake generate_secret_token` without
   `RAILS_ENV` fails on 5.1 (`LoadError listen`); fixed here in `03480ad`, worked around for the
   5.1 server by running it with `RAILS_ENV=production`.
-- The intermittent test (decision q4) failed once in each of two full runs taken while a browser run
-  loaded the machine: `test_renew_anchor_mode_fixed_one_issue_date_not_set`, "IssueRecurrence #253:
-  Last issue is invalid; Issue #nil: Recurrence of is invalid; Issue #771942122: Recurrences is
-  invalid", i.e. a recurrence of the original issue was itself invalid when the copy validated its
-  `recurrence_of`. The same seed passes, the test alone passes 3 of 3, the following full runs on
-  both branches were green. Not caused by this feature (it touches no validation); recorded for q4.
+- The intermittent test (decision q4), `test_renew_anchor_mode_fixed_one_issue_date_not_set`, failed
+  in 3 of the 11 full runs made with the feature (twice on 5.1, once on 7.0; 0 of 2 baseline runs,
+  0 of 2 combined runs). On 7.0 the q4 helper gave: "IssueRecurrence #253: Last issue is invalid;
+  Issue #nil: Recurrence of is invalid; Issue #771942122: Recurrences is invalid", i.e. a recurrence
+  of the original issue was itself invalid when the copy validated its `recurrence_of`. The same seed
+  passes, the test alone passes 3 of 3. The feature touches no validation and no renewal code; the
+  numbers are too few to tell whether the rate changed, so they are recorded here for q4.
 
 Known limits, by decision or as measured:
 - A recurrence that gets schedules of its own stays in the series it recurred in; only its own
