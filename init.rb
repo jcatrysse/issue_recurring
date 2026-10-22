@@ -33,6 +33,9 @@ def load_patches
 
   # Other plugins patch these classes too; prepend composes with them.
   TimeEntryQuery.prepend IssueRecurring::TimeEntryQueryPatch
+  TimeEntryQuery.prepend IssueRecurring::RecurrenceOfColumnPatch
+  IssueQuery.prepend IssueRecurring::IssueQueryPatch
+  IssueQuery.prepend IssueRecurring::RecurrenceOfColumnPatch
   Redmine::Helpers::TimeReport.prepend IssueRecurring::TimeReportPatch
 
   SettingsHelper.include IssueRecurring::SettingsHelperPatch

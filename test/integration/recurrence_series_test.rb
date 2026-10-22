@@ -199,6 +199,75 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
     end
   end
 
+  def issues_filter(operator, values = [], **options)
+    {set_filter: 1, f: ['status_id', 'recurrence_of'], op: {status_id: '*', recurrence_of: operator},
+     v: {recurrence_of: values}, c: ['subject', 'recurrence_of', 'estimated_hours', 'spent_hours'],
+     t: ['estimated_hours', 'spent_hours']}.merge(options)
+  end
+
+  def test_issue_list_filter_and_column
+    with_settings timespan_format: 'decimal' do
+      get project_issues_path(@project, issues_filter('=', [@template.id]))
+      assert_response :success
+      assert_select 'table.issues tr.issue', 7
+      assert_select 'table.issues td.recurrence_of a[href=?]', issue_path(@template), 7
+      assert_select 'p.query-totals .total-for-estimated-hours .value', '9.00'
+      assert_select 'p.query-totals .total-for-spent-hours .value', '21.00'
+    end
+  end
+
+  def test_issue_list_filter_none
+    get project_issues_path(@project, issues_filter('!*'))
+    assert_response :success
+    assert_equal [@other.id, issues(:issue_03).id].sort,
+      css_select('table.issues tr.issue').map { |tr| tr['id'].delete_prefix('issue-').to_i }.sort
+    assert_select 'table.issues td.recurrence_of', text: '', count: 2
+  end
+
+  def test_issue_list_grouped_by_recurrence_of
+    with_settings timespan_format: 'decimal' do
+      get project_issues_path(@project, issues_filter('*', [], group_by: 'recurrence_of'))
+      assert_response :success
+      assert_select 'tr.group', 1
+      assert_select 'tr.group span.name a[href=?]', issue_path(@template)
+      assert_select 'tr.group span.count', '7'
+      assert_select 'tr.group .total-for-spent-hours .value', '21.00'
+    end
+  end
+
+  def test_issue_list_needs_view_issue_recurrences
+    roles(:developer).remove_permission!(:view_issue_recurrences)
+    get project_issues_path(@project, issues_filter('=', [@template.id]))
+    assert_response :success
+    assert_select 'table.issues th', text: 'Recurrence of', count: 0
+    assert_select 'table.issues tr.issue', 9
+  end
+
+  def test_time_entry_list_column_grouped
+    with_settings timespan_format: 'decimal' do
+      get project_time_entries_path(@project, set_filter: 1, f: ['spent_on'], op: {spent_on: '*'},
+                                    c: ['issue', 'recurrence_of', 'hours'], t: ['hours'],
+                                    group_by: 'recurrence_of')
+      assert_response :success
+      groups = css_select('tr.group')
+      assert_equal 2, groups.size
+      template_group = groups.detect { |g| g.at_css('span.name a') }
+      assert_equal issue_path(@template), template_group.at_css('span.name a')['href']
+      assert_equal '6', template_group.at_css('span.count').text
+      assert_equal '21.00', template_group.at_css('.total-for-hours .value').text
+      assert_select 'table.time-entries td.recurrence_of a[href=?]', issue_path(@template), 6
+    end
+  end
+
+  def test_time_entry_list_csv_with_column
+    get project_time_entries_path(@project, set_filter: 1, f: ['spent_on'], op: {spent_on: '*'},
+                                  c: ['issue', 'recurrence_of', 'hours'], format: 'csv')
+    assert_response :success
+    lines = response.body.lines
+    assert_includes lines.first, 'Recurrence of'
+    assert_equal 6, lines.count { |l| l.include?("##{@template.id}") }
+  end
+
   def test_time_report_criterion_needs_view_issue_recurrences
     roles(:developer).remove_permission!(:view_issue_recurrences)
     get report_project_time_entries_path(@project, criteria: ['recurrence_of'], columns: 'year')
