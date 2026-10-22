@@ -107,6 +107,20 @@ class IssueRecurrenceSeriesTest < ActiveSupport::TestCase
     assert_equal 2.0, IssueRecurrenceSeries.for_issue(@copy1).spent_hours
   end
 
+  def test_query_column_values_follow_template_sql
+    inner = add_subtask(@copy1)
+    inner_copy, = renew(schedule(inner))
+    issues = [@template, @subtask, @copy1, @subtask_copy1, @manual, @copy2, @subtask_copy2,
+              inner, inner_copy, @other]
+    ids = template_ids(*issues)
+    column = IssueRecurring::RecurrenceOfQueryColumn.new
+    issues.each do |issue|
+      assert_equal ids[issue.id], column.value(Issue.find(issue.id))&.id, "##{issue.id}"
+    end
+    assert_equal @template, column.value(TimeEntry.new(issue: @manual))
+    assert_nil column.value(TimeEntry.new)
+  end
+
   def test_estimated_hours_nil_without_estimates
     Issue.where(id: IssueRecurrenceSeries.issue_ids_by_template([@template.id]).values.flatten)
       .update_all(estimated_hours: nil)
