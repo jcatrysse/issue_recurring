@@ -100,6 +100,63 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
     end
   end
 
+  def test_issue_page_shows_series_totals_on_every_issue_of_the_series
+    with_settings timespan_format: 'decimal' do
+      [@template, @copy1, @manual].each do |issue|
+        get issue_path(issue)
+        assert_response :success
+        assert_select '#issue_recurrences p.recurrence-series',
+          text: 'Total (3 issues): Estimated time: 9.00 h, Spent time: 21.00 h'
+        assert_select '#issue_recurrences p.recurrence-series a[href=?]',
+          project_time_entries_path(@project, 'issue.recurrence_of' => @template.id), text: '21.00 h'
+      end
+    end
+  end
+
+  def test_issue_page_series_link_shows_the_same_total
+    with_settings timespan_format: 'decimal' do
+      get issue_path(@copy2)
+      href = css_select('#issue_recurrences p.recurrence-series a').first['href']
+      get href, params: {t: ['hours']}
+      assert_total_hours '21.00'
+    end
+  end
+
+  def test_issue_page_without_series
+    get issue_path(@other)
+    assert_response :success
+    assert_select '#issue_recurrences'
+    assert_select '#issue_recurrences p.recurrence-series', 0
+  end
+
+  def test_issue_page_series_totals_without_view_time_entries
+    roles(:developer).remove_permission!(:view_time_entries)
+    with_settings timespan_format: 'decimal' do
+      get issue_path(@copy1)
+      assert_select '#issue_recurrences p.recurrence-series',
+        text: 'Total (3 issues): Estimated time: 9.00 h'
+    end
+  end
+
+  def test_issue_page_series_totals_without_estimated_time_field
+    @template.tracker.update!(core_fields: Tracker::CORE_FIELDS - ['estimated_hours'])
+    with_settings timespan_format: 'decimal' do
+      get issue_path(@copy1)
+      assert_select '#issue_recurrences p.recurrence-series',
+        text: 'Total (3 issues): Spent time: 21.00 h'
+    end
+  end
+
+  def test_issue_page_series_across_projects_links_to_all_time_entries
+    project2 = Project.create!(name: 'Other', identifier: 'other-project', is_public: true,
+                               enabled_module_names: %w(issue_tracking time_tracking),
+                               tracker_ids: [@template.tracker_id])
+    @copy2.update!(project: project2)
+    get issue_path(@copy1)
+    assert_select '#issue_recurrences p.recurrence-series a[href=?]',
+      time_entries_path('issue.recurrence_of' => @template.id)
+  end
+
   def test_time_report_criterion_needs_view_issue_recurrences
     roles(:developer).remove_permission!(:view_issue_recurrences)
     get report_project_time_entries_path(@project, criteria: ['recurrence_of'], columns: 'year')
