@@ -126,6 +126,58 @@ class IssueRecurrenceSeriesTest < ActiveSupport::TestCase
     assert_nil column.value(TimeEntry.new)
   end
 
+  def test_copy_last_recurrences_belong_to_the_template
+    issue = issues(:issue_03)
+    issue.update!(start_date: Date.current - 5, due_date: Date.current - 5)
+    copies = renew(schedule(issue, creation_mode: :copy_last), 2)
+    assert_equal [issue.id] * 3, template_ids(issue, *copies).values
+  end
+
+  def test_deleting_the_template_ends_the_series
+    @template.reload.destroy
+    assert_equal [nil, nil, nil], template_ids(@copy1, @subtask_copy1, @manual).values
+    assert_nil IssueRecurrenceSeries.for_issue(@copy1)
+  end
+
+  # A recurrence given schedules of its own stays in the series it recurred in;
+  # only its own recurrences form the new series.
+  def test_template_that_is_a_recurrence_stays_in_its_series
+    copy_of_copy, = renew(schedule(@copy2))
+    ids = template_ids(@copy2, copy_of_copy)
+    assert_equal [@template.id, @copy2.id], ids.values_at(@copy2.id, copy_of_copy.id)
+    assert_equal [copy_of_copy.id],
+      IssueRecurrenceSeries.issue_ids_by_template([@copy2.id])[@copy2.id]
+  end
+
+  def test_issue_ids_by_template_leaves_the_rest_of_the_tree_out
+    umbrella = issues(:issue_03)
+    umbrella.update!(start_date: Date.current - 5, due_date: Date.current - 5)
+    template = add_subtask(umbrella, subject: 'Recurring below an umbrella')
+    sibling = add_subtask(umbrella, subject: 'Unrelated sibling')
+    copy, = renew(schedule(template))
+    assert_equal umbrella, copy.parent
+    assert_equal [template.id, copy.id].sort,
+      IssueRecurrenceSeries.issue_ids_by_template([template.id])[template.id].sort
+    assert_equal({umbrella.id => nil, sibling.id => nil}, template_ids(umbrella, sibling))
+  end
+
+  def test_merge_ranges
+    assert_equal [[1, 10], [12, 13]],
+      IssueRecurrenceSeries.merge_ranges([[12, 13], [2, 3], [1, 10], [4, 5]])
+    assert IssueRecurrenceSeries.in_ranges?([[1, 10], [12, 13]], 12)
+    assert_not IssueRecurrenceSeries.in_ranges?([[1, 10], [12, 13]], 11)
+    assert_not IssueRecurrenceSeries.in_ranges?([[3, 10]], 2)
+  end
+
+  def test_query_column_hides_what_the_user_cannot_see
+    column = IssueRecurring::RecurrenceOfQueryColumn.new
+    @template.update_columns(is_private: true, assigned_to_id: users(:bob).id)
+    @copy1.update_columns(is_private: true, assigned_to_id: users(:bob).id)
+    User.current = User.find(users(:charlie).id)
+    assert_equal "##{@template.id}", column.value(Issue.find(@copy2.id))
+    assert_nil column.value(TimeEntry.new(issue: Issue.find(@copy1.id)))
+  end
+
   def test_estimated_hours_nil_without_estimates
     Issue.where(id: IssueRecurrenceSeries.issue_ids_by_template([@template.id]).values.flatten)
       .update_all(estimated_hours: nil)

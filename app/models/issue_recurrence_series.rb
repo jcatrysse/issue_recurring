@@ -39,22 +39,29 @@ class IssueRecurrenceSeries
   end
 
   # Filter values: the templates the user can see in +project+ (and its
-  # subprojects as Redmine displays them), all visible templates when nil.
+  # subprojects as Redmine displays them), in any project when nil, as far as
+  # the user may view recurrences there.
   def self.template_values(project)
-    scope = templates.visible
+    scope = templates.visible.where(Project.allowed_to_condition(User.current, :view_issue_recurrences))
     scope = scope.where(project.project_condition(Setting.display_subprojects_issues?)) if project
     scope.order(:id).pluck(:id, :subject).map { |id, subject| ["##{id}: #{subject}", id.to_s] }
   end
 
-  # Ids of the issues of each series, by template id.
+  # Ids of the issues of each series, by template id. Only the subtrees of the
+  # template and its recurrences are looked at, not the rest of their trees.
   def self.issue_ids_by_template(template_ids)
     template_ids = template_ids.map(&:to_i).to_set
     return {} if template_ids.empty?
 
-    root_ids = Issue.where(id: template_ids.to_a)
+    subtrees = Issue.where(id: template_ids.to_a)
       .or(Issue.where(recurrence_of_id: template_ids.to_a))
-      .distinct.pluck(:root_id)
-    rows = Issue.where(root_id: root_ids).pluck(:id, Arel.sql(template_sql))
+      .pluck(:root_id, :lft, :rgt)
+      .group_by(&:first)
+      .transform_values { |rows| merge_ranges(rows.map { |_, lft, rgt| [lft, rgt] }) }
+    candidate_ids = Issue.where(root_id: subtrees.keys).pluck(:id, :root_id, :lft)
+      .select { |_, root_id, lft| in_ranges?(subtrees[root_id], lft) }
+      .map(&:first)
+    rows = Issue.where(id: candidate_ids).pluck(:id, Arel.sql(template_sql))
     rows.each_with_object({}) do |(id, template_id), ids|
       next unless template_id && template_ids.include?(template_id.to_i)
 
@@ -62,8 +69,25 @@ class IssueRecurrenceSeries
     end
   end
 
+  # Sorted, non-overlapping [lft, rgt] ranges covering +ranges+.
+  def self.merge_ranges(ranges)
+    ranges.sort.each_with_object([]) do |(lft, rgt), merged|
+      if merged.any? && lft <= merged.last[1]
+        merged.last[1] = [merged.last[1], rgt].max
+      else
+        merged << [lft, rgt]
+      end
+    end
+  end
+
+  def self.in_ranges?(ranges, lft)
+    i = (ranges.bsearch_index { |l, _| l > lft } || ranges.size) - 1
+    i >= 0 && lft <= ranges[i][1]
+  end
+
   # SQL condition for the filter "Recurrence of" on the issue id in +column+.
-  # The issues table must be joined as issues.
+  # The issues table must be joined as issues, restricted to visible issues
+  # where the query does that (time entries), so all operators agree.
   def self.sql_for_filter(column, operator, value)
     case operator
     when '='
@@ -89,8 +113,9 @@ class IssueRecurrenceSeries
   end
 
   # The series of +templates+, by template id, computed in a fixed number of
-  # queries. Hours of time entries the user can see, estimated time and count
-  # of the issues the user can see; subtask copies are not counted separately.
+  # queries. Hours of the time entries the user can see on the issues the user
+  # can see, as Spent time filtered on the series lists them; estimated time and
+  # count of those issues; subtask copies are not counted separately.
   def self.for_templates(templates)
     ids_by_template = issue_ids_by_template(templates.map(&:id))
     ids = ids_by_template.values.flatten
@@ -112,7 +137,7 @@ class IssueRecurrenceSeries
         template,
         issues_count: counted.size,
         estimated_hours: estimated.empty? ? nil : estimated.sum.to_f,
-        spent_hours: hours.values_at(*series_ids).compact.sum.to_f,
+        spent_hours: hours.values_at(*visible.map(&:first)).compact.sum.to_f,
         project_ids: visible.map(&:last).uniq
       )
     end

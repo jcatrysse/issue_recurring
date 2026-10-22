@@ -29,7 +29,8 @@ def load_patches
 
   Project.include IssueRecurring::ProjectPatch
 
-  # Other plugins patch these classes too; prepend composes with them.
+  # Other plugins patch these classes too; prepend composes with theirs as long
+  # as they prepend as well (alias_method chains on the same methods recurse).
   TimeEntryQuery.prepend IssueRecurring::TimeEntryQueryPatch
   TimeEntryQuery.prepend IssueRecurring::RecurrenceOfColumnPatch
   IssueQuery.prepend IssueRecurring::IssueQueryPatch

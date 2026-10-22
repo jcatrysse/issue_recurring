@@ -48,6 +48,51 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
     end
   end
 
+  def test_time_entries_filter_operators_with_two_series
+    build_second_series
+    with_settings timespan_format: 'decimal' do
+      get project_time_entries_path(@project, series_filter('=', [@template.id]))
+      assert_total_hours '21.00'
+      get project_time_entries_path(@project, series_filter('=', [@template.id, @template2.id]))
+      assert_total_hours '26.00'
+      get project_time_entries_path(@project, series_filter('!', [@template.id]))
+      assert_total_hours '12.00'
+      get project_time_entries_path(@project, series_filter('*'))
+      assert_total_hours '26.00'
+      get project_time_entries_path(@project, series_filter('!*'))
+      assert_total_hours '7.00'
+    end
+  end
+
+  # Spent time joins an issue only when the user can see it; time on a private
+  # recurrence of someone else is then outside every series, everywhere.
+  def test_time_on_issues_the_user_cannot_see
+    @copy2.update_columns(is_private: true, assigned_to_id: users(:bob).id)
+    assert_not @copy2.reload.visible?(users(:alice))
+    with_settings timespan_format: 'decimal' do
+      get project_time_entries_path(@project, series_filter('=', [@template.id]))
+      assert_total_hours '15.00'
+      get project_time_entries_path(@project, series_filter('*'))
+      assert_total_hours '15.00'
+      get project_time_entries_path(@project, series_filter('!*'))
+      assert_total_hours '13.00'
+      get report_project_time_entries_path(@project, criteria: ['recurrence_of'], columns: 'year')
+      template_row = css_select('#time-report tr.last-level').detect { |row| row.at_css('td.name a') }
+      assert_equal '15.00', template_row.css('td.hours').last.text.strip
+      get issue_path(@copy1)
+      assert_select '#issue_recurrences p.recurrence-series',
+        text: 'Total (2 issues): Estimated time: 7.00 h, Spent time: 15.00 h'
+      get project_recurrences_path(@project)
+      assert_select '#project_recurrences td.spent_hours', '15.00'
+      get project_time_entries_path(@project, set_filter: 1, f: ['spent_on'], op: {spent_on: '*'},
+                                    c: ['issue', 'recurrence_of', 'hours'], t: ['hours'],
+                                    group_by: 'recurrence_of')
+      template_group = css_select('tr.group').detect { |g| g.at_css('span.name a') }
+      assert_equal '15.00', template_group.at_css('.total-for-hours .value').text
+      assert_select 'table.time-entries td.recurrence_of a[href=?]', issue_path(@template), 5
+    end
+  end
+
   def test_time_entries_filter_values_are_visible_templates
     get '/queries/filter', params: {project_id: @project.id, type: 'TimeEntryQuery',
                                     name: 'issue.recurrence_of'}
@@ -176,14 +221,18 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
   end
 
   def test_module_tab_report_link
+    build_second_series
     with_settings timespan_format: 'decimal' do
       get project_recurrences_path(@project)
       href = css_select('#content .contextual a').detect { |a| a.text == 'Report' }['href']
       get href
       assert_response :success
-      assert_select '#time-report tr.last-level', 1
-      assert_select '#time-report tr.last-level td.name a[href=?]', issue_path(@template)
-      assert_equal '21.00', css_select('#time-report tr.last-level td.hours').last.text.strip
+      assert_select '#time-report tr.last-level', 2
+      assert_equal ['21.00', '5.00'], [@template, @template2].map { |t|
+        css_select('#time-report tr.last-level')
+          .detect { |row| row.at_css("td.name a[href='#{issue_path(t)}']") }
+          .css('td.hours').last.text.strip
+      }
     end
   end
 
@@ -233,6 +282,19 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
       assert_select 'tr.group span.count', '7'
       assert_select 'tr.group .total-for-spent-hours .value', '21.00'
     end
+  end
+
+  def test_issue_list_grouped_by_recurrence_of_with_two_series
+    build_second_series
+    get project_issues_path(@project, set_filter: 1, f: ['status_id'], op: {status_id: '*'},
+                            c: ['subject', 'spent_hours'], group_by: 'recurrence_of')
+    assert_response :success
+    counts = css_select('tr.group').to_h do |g|
+      link = g.at_css('span.name a')
+      [link ? link['href'] : 'blank', g.at_css('span.count').text]
+    end
+    assert_equal({issue_path(@template) => '7', issue_path(@template2) => '2', 'blank' => '1'},
+                 counts)
   end
 
   def test_issue_list_needs_view_issue_recurrences
