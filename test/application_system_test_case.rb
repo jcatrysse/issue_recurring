@@ -29,6 +29,7 @@ class IssueRecurringSystemTestCase < ApplicationSystemTestCase
   end
 
   self.fixture_path = File.expand_path('../fixtures/', __FILE__)
+  self.fixture_table_names = []
   fixtures :issues, :issue_statuses,
     :users, :email_addresses, :trackers, :projects,
     :roles, :members, :member_roles, :enabled_modules, :workflow_transitions,
