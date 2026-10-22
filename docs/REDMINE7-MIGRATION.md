@@ -242,6 +242,11 @@ For this plugin:
    points to is the invalid record; the helper now follows that association too. Status of the
    next occurrence: see "Results".
 
+New feature, decided by Jan on 2026-10-22: spent and estimated time over a recurring issue and all its
+recurrences (plan, measurements and Jan's choices in `docs/SPENT-TIME.md`). It goes on `master` as well
+(a branch Jan merges himself) and is built there first, an exception Jan asked for to the general
+decision above ("nothing cherry-picked to the default branch"); on this branch it is pushed directly.
+
 Earlier recommendations taken over without a separate question: success notices kept (`c96b054`),
 merge only with the Redmine 7 upgrade (now the general decision).
 

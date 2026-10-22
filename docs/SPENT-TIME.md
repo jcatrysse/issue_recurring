@@ -2,8 +2,9 @@
 
 Written 2026-10-22 by the coordinating session for this feature, from the code of `master` and
 `redmine70-migration`, Redmine core `5.1-stable` and `7.0-stable-GEOxyz`, and a measured SQL spike
-on PostgreSQL 16 (`docs/spent-time/spike.sql`). Nothing is built yet. This file is the plan and the
-memory of the work; the implementation session updates it as it goes.
+on PostgreSQL 16 (`docs/spent-time/spike.sql`). Jan answered the open choices the same day (see
+"Decided by Jan"); the build started in the same session. This file is the plan and the memory of
+the work; update it as the work goes.
 
 ## Voor Jan
 
@@ -41,8 +42,8 @@ zwaardere queries zo'n 0,5 s kost; zie "Performance".
 Kost: alles twee keer testen (Redmine 5.1 en 7.0) en de code mag niets gebruiken dat alleen in 7.0
 bestaat. Voor deze feature is dat haalbaar zonder twee versies van de code.
 
-**Jouw keuzes** staan onderaan onder "Open choices for Jan", elk met aanbeveling. Er blokkeert niets:
-met de aanbevelingen kan de bouwsessie meteen starten.
+**Jouw keuzes** van 2026-10-22 staan onderaan onder "Decided by Jan": C1 tot C4 volgens
+aanbeveling, fase 2 meteen mee, eerst `master` en dan `redmine70-migration`.
 
 ## What we want
 
@@ -185,7 +186,7 @@ Issue                      | Every   | Last  | ... | #  | Estimated time | Spent
   filter "Recurrence of: any", rows "Recurrence of", columns per month and "Date: less than 365 days
   ago". That one link answers Q2 to Q4, with core's own period controls.
 
-### Phase 2, optional (see choice C5)
+### Phase 2 (built together with phase 1, Jan C5)
 
 - Issue list: filter and column "Recurrence of" on `IssueQuery`. Filtered on one template, with
   core's columns Start date, Due date, Estimated time, Spent time and their totals, this is
@@ -286,11 +287,12 @@ issue_recurrences`). The synthetic set is meant as an upper bound.
 - One design, the same code: no 7.0-only API (no `sprite_icon`, no `:hour` filter type, no
   estimated remaining time). The few lines where `master` and `redmine70-migration` already differ
   (`init.rb`) are adapted, not branched in code.
-- Order: build and prove on `redmine70-migration` first (Redmine 7.0-stable-GEOxyz, PostgreSQL, the
-  `.codex` harness lives there), then port the same commits to a branch from `master` and run the same
-  tests and e2e on Redmine 5.1 (`./.codex/redmine_clone.sh 5.1-stable` with `master`'s code).
-- `master` is the default branch and is never pushed to directly (plugin rule): the port goes to a
-  branch from `master` and reaches `master` through a pull request Jan merges.
+- Order (Jan, 2026-10-22): `master` first, on Redmine 5.1 (Ruby 3.2, since 5.1 refuses 3.3), with
+  the `.codex` harness of `redmine70-migration` copied next to the code and not committed; then the
+  same commits on `redmine70-migration`, proven on Redmine 7.0-stable-GEOxyz.
+- `master` is the default branch and is never pushed to directly (plugin rule): the work goes to a
+  branch from `master` and Jan merges it into `master` himself (Jan, 2026-10-22).
+- `redmine70-migration`: pushed directly, after every commit, as during the migration (Jan, 2026-10-22).
 - Exception to Jan's general decision of 2026-10-07 ("nothing to `master`, no 5.1"): asked by Jan on
   2026-10-22 for this feature. Record it under "Decided by Jan" in `docs/REDMINE7-MIGRATION.md` when
   the feature is built.
@@ -311,9 +313,22 @@ both branches:
 - Combined run with the other GEOxyz plugins: no new failure.
 - Own adversarial review, and `.codex/openai_review.sh` when `OPENAI_API_KEY` is set.
 
-## Open choices for Jan
+## Decided by Jan
 
-None blocks the build; the session builds the recommendation unless Jan chooses otherwise.
+Answered by Jan on 2026-10-22, one question at a time, with the options, an explanation and the
+recommendation in front of him:
+
+- C1: **A**, a line in the Recurrences panel.
+- C2: **A**, "Recurrence of".
+- C3: **A**, all-time totals on the module tab, the link opens core's report.
+- C4: **A**, subtasks count, like core's "Total".
+- C5: **B**, phase 2 is built now, together with phase 1.
+- Order: `master` first, then `redmine70-migration`.
+- `master`: Jan merges it himself from a branch. `redmine70-migration`: pushed directly.
+- On `master` at all: asked by Jan for this feature, an exception to his general decision of
+  2026-10-07 ("nothing to `master`, no 5.1").
+
+The options as they were put to him:
 
 - **C1, where on the issue page.** A) A line in the plugin's "Recurrences" panel. B) A row next to
   core's "Spent time" in the issue attributes. *Recommended: A*: all recurrence information stays
@@ -331,11 +346,10 @@ None blocks the build; the session builds the recommendation unless Jan chooses 
 - **C5, phase 2.** A) Later, separate. B) Now, with the rest. *Recommended: A*: phase 1 answers Q1 to
   Q4 and most of Q5; phase 2 is worth it once managers use phase 1.
 
-## Prompt for the implementation session
+## Prompt for a session that continues this work
 
-> Read CLAUDE.md, docs/REDMINE7-MIGRATION.md and docs/SPENT-TIME.md, then build phase 1 of
-> docs/SPENT-TIME.md with Jan's choices recorded there (the recommendations where none is recorded):
-> first on `redmine70-migration`, then the same commits ported to a branch from `master` and proven on
-> Redmine 5.1. Same gates as the migration: tests on PostgreSQL, every function end to end in a browser
+> Read CLAUDE.md, docs/REDMINE7-MIGRATION.md and docs/SPENT-TIME.md, then continue phases 1 and 2
+> of docs/SPENT-TIME.md with Jan's decisions recorded there: `master` first (a branch Jan merges),
+> then the same commits on `redmine70-migration`. Same gates as the migration: tests on PostgreSQL, every function end to end in a browser
 > with and without permissions, measurements through Redmine, the combined run, the OpenAI review when
 > the key is set. Push after every commit. Report to me in Dutch at the end.
