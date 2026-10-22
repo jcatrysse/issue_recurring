@@ -58,7 +58,7 @@ Phases 1 and 2 are built, on both branches, with the same code apart from one te
 | Plugin tests after | 134 runs, 9298 assertions, 0 failures, 0 errors (seed 57916) | 149 runs, 11193 assertions, 0 failures, 0 errors (seed 25970) |
 | New tests | 43 (17 unit, 26 integration); 15 of the first 18 red without the feature, the 2 visibility tests red before the review fix | same 43 |
 | End to end, real Redmine, production mode | `docs/e2e/redmine51/spent-time.md`: 14 screenshots, 0 problems; before: `docs/e2e/before/spent-time-before.md`, 11 screenshots (`master` without the feature) | `docs/e2e/spent-time.md`: 14 screenshots, 0 problems |
-| Review | independent Claude review, 12 findings, all resolved: `docs/reviews/claude-2026-10-22-spent-time.md`; OpenAI review: see `docs/reviews/` | same |
+| Review | independent Claude review, 12 findings, all resolved: `docs/reviews/claude-2026-10-22-spent-time.md`; OpenAI review (gpt-5) of `d4815ee..5ad616c`: no findings, `docs/reviews/openai-2026-10-22-5ad616c.md` | same code |
 
 Found on the way, outside this feature:
 - `master`'s tests did not run at all on Redmine 5.1.13 (core declares `fixtures :all`; 91 errors);
