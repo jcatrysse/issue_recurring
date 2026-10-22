@@ -58,6 +58,7 @@ fixtures only on Rails 7.1+). Session commits, in order:
 | `b1d16e0` | Found by the new e2e refusal path: an issue copy by a user without recurrence permissions failed with "Recurrences is invalid"; now copied without the recurrences + integration test |
 | `3e3c0a3` | Follow-up after the OpenAI review: the copy keeps exactly the recurrences whose own `editable?` check passes + integration test |
 | `e5c9088` and later | e2e (copy-issue for all users, plugin-version, combined run), plan, reviews |
+| `d1aa81c`..`e46c157` | New feature (Jan, 2026-10-22): spent and estimated time over a recurring issue and its recurrences; plan, numbers and review in `docs/SPENT-TIME.md`, also on `spent-time-master` for `master` |
 
 ## Work list for the migration session
 
@@ -113,6 +114,7 @@ rake tasks. Scenarios in `test/e2e/`, screenshots and tables in `docs/e2e/<scena
 | Copy recurrences on issue copy (setting), copies never keep "recurrence of"; `Issue#copy_from` patched with prepend | issue > Copy | `copy-issue.mjs` | `copy-issue-*` (setting off/on, copy of a recurrence, admin, reporter refused without copy_issues, reporter with copy_issues: copy without recurrences, outsider 403) |
 | Plugin version 1.8.0-geoxyz (decision q3) | Administration > Plugins | `plugin-version.mjs` | `plugin-version-*` (admin, manager/reporter/outsider 403) |
 | REST API: none of its own; core issue API with a recurrence, plugin route not an API | API | `rest-api.mjs` | `rest-api-issue-json.png` |
+| Spent time over a series (2026-10-22): panel line, module tab columns/totals/Report link, Spent time filter "Issue's Recurrence of" and report criterion "Recurrence of", issue list filter and column, time entry list column, grouping, CSV, REST | issue page, module tab, Spent time, issue list | `spent-time.mjs` | `spent-time-*` (also `docs/e2e/redmine51/`, before in `docs/e2e/before/spent-time-before-*`) |
 | Migrations 001-008, down and up | `redmine:plugins:migrate` | command | see "Results" |
 | Dev task `redmine:plugins:test:migration` | rake | command | see work item 2 |
 

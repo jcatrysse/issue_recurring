@@ -45,6 +45,49 @@ bestaat. Voor deze feature is dat haalbaar zonder twee versies van de code.
 **Jouw keuzes** van 2026-10-22 staan onderaan onder "Decided by Jan": C1 tot C4 volgens
 aanbeveling, fase 2 meteen mee, eerst `master` en dan `redmine70-migration`.
 
+## Status (2026-10-22, built)
+
+Phases 1 and 2 are built, on both branches, with the same code apart from one test line
+(`fixture_paths` on Rails 7.1+).
+
+| | `spent-time-master` (from `master`, Jan merges it) | `redmine70-migration` |
+|---|---|---|
+| Feature commits | `39893d4` `c1b3c89` `ac9ce8f` `4138dbf` `c43bfae` `cc73f43` `4e1817f` | `d1aa81c` `f6a45dc` `7825dd5` `3b5f8ff` `0b36c13` `e56282b` `5461190` `e46c157` |
+| Redmine measured on | 5.1-stable-GEOxyz (5.1.13, Rails 6.1, Ruby 3.2.6), PostgreSQL 16.15 | 7.0-stable-GEOxyz (Rails 8.1, Ruby 3.3.6), PostgreSQL 16.15 |
+| Plugin tests before | 91 runs, 91 errors as `master` is; 91 runs, 9029 assertions, 0 failures after `6a17ef8` (below) | 106 runs, 10888 assertions, 0 failures, 0 errors |
+| Plugin tests after | 134 runs, 9298 assertions, 0 failures, 0 errors (seed 57916) | 149 runs, 11193 assertions, 0 failures, 0 errors (seed 25970) |
+| New tests | 43 (17 unit, 26 integration); 15 of the first 18 red without the feature, the 2 visibility tests red before the review fix | same 43 |
+| End to end, real Redmine, production mode | `docs/e2e/redmine51/spent-time.md`: 14 screenshots, 0 problems; before: `docs/e2e/before/spent-time-before.md`, 11 screenshots (`master` without the feature) | `docs/e2e/spent-time.md`: 14 screenshots, 0 problems |
+| Review | independent Claude review, 12 findings, all resolved: `docs/reviews/claude-2026-10-22-spent-time.md`; OpenAI review: see `docs/reviews/` | same |
+
+Found on the way, outside this feature:
+- `master`'s tests did not run at all on Redmine 5.1.13 (core declares `fixtures :all`; 91 errors);
+  `6a17ef8` on `spent-time-master` resets the fixture list as `22fab85` does here. `master`'s
+  migration tests left a recurrence with `count` NULL behind; `6523186` is this branch's `68d7e2a`.
+- `master`'s rakefile boots the app in development, so `rake generate_secret_token` without
+  `RAILS_ENV` fails on 5.1 (`LoadError listen`); fixed here in `03480ad`, worked around for the
+  5.1 server by running it with `RAILS_ENV=production`.
+- The intermittent test (decision q4) failed once in each of two full runs taken while a browser run
+  loaded the machine: `test_renew_anchor_mode_fixed_one_issue_date_not_set`, "IssueRecurrence #253:
+  Last issue is invalid; Issue #nil: Recurrence of is invalid; Issue #771942122: Recurrences is
+  invalid", i.e. a recurrence of the original issue was itself invalid when the copy validated its
+  `recurrence_of`. The same seed passes, the test alone passes 3 of 3, the following full runs on
+  both branches were green. Not caused by this feature (it touches no validation); recorded for q4.
+
+Known limits, by decision or as measured:
+- A recurrence that gets schedules of its own stays in the series it recurred in; only its own
+  recurrences form the new series (review finding 8, pinned by a test).
+- After adding or deleting a schedule on the issue page or the module tab, the totals show their
+  new state after a reload (finding 7; time itself does not change by it).
+- On global lists the column "Recurrence of" also names the template of a visible issue in a
+  project where the user may not view recurrences; core shows the same relation as "Copied from"
+  (finding 6).
+- The subquery with `ORDER BY ... LIMIT 1` does not run on SQL Server; PostgreSQL, MySQL and SQLite
+  are fine (finding 12).
+
+Deploying: no migration, no setting. `master`: restart Redmine after the merge. This branch: goes
+live with the Redmine 7 upgrade as the rest of it.
+
 ## What we want
 
 The user is a manager who wants to know what recurring work costs. The questions, in the order the
@@ -78,7 +121,8 @@ maintainability; usable by a manager, also over a period; on `master` and on `re
 **Definition used throughout: the series of template T** is T and every issue with
 `recurrence_of_id = T`, each together with all its descendants, every issue counted once. That is
 core's "Total spent time" (`Issue#total_spent_hours`: the issue and its subtasks), taken over every
-recurrence. A **template** is an issue that has a schedule or has recurrences pointing to it (a
+recurrence. As built, every issue belongs to at most one series: a descendant that belongs to a
+series of its own (edge case 5) counts there only, so no hour is ever counted in two series. A **template** is an issue that has a schedule or has recurrences pointing to it (a
 template whose schedules were deleted still has its series).
 
 ## What Redmine core already offers (5.1 and 7.0)
@@ -155,13 +199,16 @@ All recurrences (13 issues): Estimated time 52.00 h, Spent time 47.25 h
 - "Spent time 47.25 h" is a link to the Spent time list filtered on this series, the same way
   core's own "Spent time" links to `time_entries?issue_id=~ID`. Project-scoped path, global path when
   the series spans projects (core does the same for cross-project subtasks).
-- Format with core's `l_hours_short`, labels core's `label_spent_time` and `field_estimated_hours`;
-  one new plugin key for "All recurrences (%{count} issues)". The count is the template and its
-  recurrences; subtask copies are part of their recurrence and not counted separately.
+- Format with core's `l_hours_short`; every word is a core key that en, es and bg already
+  translate (`label_total`, `label_x_issues`, `field_estimated_hours`, `label_spent_time`), so the
+  feature adds no locale key at all. As built: "Total (3 issues): Estimated time: 9.00 h, Spent
+  time: 14.50 h". The count is the template and its recurrences; subtask copies are part of their
+  recurrence and not counted separately.
 - Spent time only with `view_time_entries` (as core); estimated time hidden when the template's
   tracker disables `estimated_hours` (as core). The panel itself stays behind `view_issue_recurrences`.
-- Shown only when the issue belongs to a series. Computed in two queries (member ids, then the two
-  sums), never per recurrence in Ruby.
+- Shown only when the issue belongs to a series. Computed by the helper
+  (`IssuesHelperPatch#recurrence_series_totals`, like core's own helpers call
+  `issue.total_spent_hours`) in a fixed number of queries, never per recurrence in Ruby.
 
 ### 4. Module tab "Issue recurrences"
 
@@ -180,9 +227,9 @@ Issue                      | Every   | Last  | ... | #  | Estimated time | Spent
 - One grouped computation for all series of the page (measured under 0.2 s for 20 series, 3,998
   issues, 44,537 entries), not one per row.
 - A schedule list can show the same issue twice (two schedules): rows sorted by issue, the numbers
-  on the first row of that issue only, so the totals never count a series twice (a series nested in
-  another one, edge case 5, is still part of both).
-- The contextual link "Spent time" (core's `label_spent_time`) opens Spent time > Report with the
+  on the first row of that issue only, so the totals never count a series twice.
+- The contextual link "Report" (core's `label_report`; "Spent time" next to the totals read as a
+  duplicate in the browser run) opens Spent time > Report with the
   filter "Recurrence of: any", rows "Recurrence of", columns per month and "Date: less than 365 days
   ago". That one link answers Q2 to Q4, with core's own period controls.
 
@@ -205,8 +252,10 @@ spent time link has no icon either).
 ## Permissions and visibility
 
 - Spent time sums use `TimeEntry.visible`, so a role limited to "own time entries" sees its own
-  hours, and the number shown equals the total on the list it links to. Core's issue page uses the
-  unscoped sum; the plugin deliberately matches the link target instead.
+  hours, and the number shown equals the total on the list it links to. Core's issue page does the
+  same (`IssuesController#show` calls `Issue.load_visible_total_spent_hours`); the analysis said
+  otherwise, the browser run showed core's "Total: 6.50 h" next to the series' 13.00 h, both counting
+  only the manager's own entries.
 - Estimated sums use `Issue.visible` (core's `total_estimated_hours` does the same).
 - Filter, criterion and columns only where the user has `view_issue_recurrences` (in the project,
   or in any project for the global list) and the project has the module enabled. The filter values
@@ -221,8 +270,10 @@ spent time link has no icon either).
 4. Schedules deleted, recurrences kept: still a series. Template deleted: the series is gone
    (`recurrence_of` nullified by the plugin today), time stays on the issues.
 5. A series nested in another (a recurring subtask with its own schedule below a recurring parent):
-   the filter counts it in both, as core's total would; the report puts each entry in the innermost
-   series only. Documented, not "fixed".
+   it belongs to the innermost series only, in the filter, the report, the columns and the totals
+   alike, so the totals of the module tab add up. The outer series' total is then lower than core's
+   "Total" on its issue page, which counts the subtask too; rare, and the price of never counting
+   an hour twice.
 6. A recurrence moved to another project or a private project: visibility decides, link goes global.
 7. Time on the project without an issue: never part of a series.
 8. Recurrences created ahead (setting "Renew ahead"): they carry estimated time but no spent time yet,
@@ -275,12 +326,12 @@ issue_recurrences`). The synthetic set is meant as an upper bound.
 |---|---|
 | Schema, gems, settings, routes, permissions | none |
 | Core classes extended | `TimeEntryQuery` (filter), `Redmine::Helpers::TimeReport` (criterion), both with `prepend` (Jan, 2026-10-07); `IssueQuery` only in phase 2 |
-| Plugin files changed | `init.rb` (two patch lines), `IssueRecurrencesController#index` and `LoadIssueRecurrences` (load the totals), the panel and module tab views, `en.yml`, `es.yml`, `bg.yml` |
-| New plugin files | one model concern for the series (members, totals), two patch modules, tests, e2e scenario |
-| Size, estimated | about 200 lines of code, 300 to 400 lines of tests |
+| Plugin files changed | `init.rb` (five patch lines), `IssueRecurrencesController#index`, `IssuesHelperPatch`, `IssueRecurrencesHelper`, the panel and module tab views |
+| New plugin files | `app/models/issue_recurrence_series.rb`; `lib/issue_recurring/` `time_entry_query_patch.rb`, `time_report_patch.rb`, `issue_query_patch.rb`, `recurrence_of_column_patch.rb`, `recurrence_of_query_column.rb`; tests; `test/e2e/spent-time.mjs` |
+| Size, as built | 371 lines of code and views; 475 lines of unit and integration tests; a 206-line e2e scenario |
 | Risk: other plugins | other GEOxyz plugins may patch the same two classes; `prepend` composes, the combined run with all GEOxyz plugins must show the filter and the report still work |
 | Risk: core upgrades | `TimeReport#load_available_criteria` is private API, unchanged between 5.1 and 7.0 apart from whitespace; a test pins the criterion so an upgrade that breaks it fails loudly |
-| Locales | the plugin ships en, es, bg; new keys in those three, derived from the nearest existing key in the same file; no new languages (plugin rule) |
+| Locales | none changed: every label is an existing key (core's, or the plugin's `field_recurrence_of`) |
 
 ## Both branches
 
