@@ -21,6 +21,32 @@ module IssueRecurrencesHelper
     t
   end
 
+  # Spent time > Report: hours per series and month, over the last year.
+  def recurrence_series_report_path(project)
+    report_project_time_entries_path(project, 'issue.recurrence_of' => '*',
+                                     'spent_on' => '>t-365', criteria: ['recurrence_of'],
+                                     columns: 'month')
+  end
+
+  def series_estimated_hours(series)
+    return if series.template.disabled_core_fields.include?('estimated_hours')
+
+    series.estimated_hours
+  end
+
+  # Totals over the series of the list, in core's query totals markup.
+  def recurrence_series_totals_tag(series, spent_time)
+    estimated = series.filter_map { |s| series_estimated_hours(s) }
+    totals = [[l(:field_estimated_hours), 'estimated-hours', estimated.sum]]
+    totals << [l(:label_spent_time), 'spent-hours', series.sum(&:spent_hours)] if spent_time
+    tags = totals.map do |label, css, value|
+      content_tag('span', safe_join([content_tag('span', "#{label}:"), ' ',
+                                     content_tag('span', format_hours(value), class: 'value')]),
+                  class: "total-for-#{css}")
+    end
+    content_tag('p', safe_join(tags, ' '), class: 'query-totals')
+  end
+
   def limit_condition(r)
     return "-" if r.date_limit.nil? && r.count_limit.nil?
     return "date: #{r.date_limit}" if r.date_limit.present?

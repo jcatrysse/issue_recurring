@@ -157,6 +157,48 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
       time_entries_path('issue.recurrence_of' => @template.id)
   end
 
+  def test_module_tab_series_totals_once_per_issue
+    schedule(@template, mode: :weekly)
+    with_settings timespan_format: 'decimal' do
+      get project_recurrences_path(@project)
+      assert_response :success
+      rows = css_select('#project_recurrences tbody tr')
+      assert_equal 2, rows.size
+      assert_equal ['9.00', '21.00'],
+        rows.first.css('td.estimated_hours, td.spent_hours').map { |td| td.text.strip }
+      assert_equal project_time_entries_path(@project, 'issue.recurrence_of' => @template.id),
+        rows.first.at_css('td.spent_hours a')['href']
+      assert_equal ['', ''],
+        rows.last.css('td.estimated_hours, td.spent_hours').map { |td| td.text.strip }
+      assert_select 'p.query-totals .total-for-estimated-hours .value', '9.00'
+      assert_select 'p.query-totals .total-for-spent-hours .value', '21.00'
+    end
+  end
+
+  def test_module_tab_report_link
+    with_settings timespan_format: 'decimal' do
+      get project_recurrences_path(@project)
+      href = css_select('#content .contextual a').detect { |a| a.text == 'Spent time' }['href']
+      get href
+      assert_response :success
+      assert_select '#time-report tr.last-level', 1
+      assert_select '#time-report tr.last-level td.name a[href=?]', issue_path(@template)
+      assert_equal '21.00', css_select('#time-report tr.last-level td.hours').last.text.strip
+    end
+  end
+
+  def test_module_tab_without_view_time_entries
+    roles(:developer).remove_permission!(:view_time_entries)
+    with_settings timespan_format: 'decimal' do
+      get project_recurrences_path(@project)
+      assert_response :success
+      assert_select '#project_recurrences td.estimated_hours', '9.00'
+      assert_select '#project_recurrences td.spent_hours', 0
+      assert_select '#content .contextual a', text: 'Spent time', count: 0
+      assert_select 'p.query-totals .total-for-spent-hours', 0
+    end
+  end
+
   def test_time_report_criterion_needs_view_issue_recurrences
     roles(:developer).remove_permission!(:view_issue_recurrences)
     get report_project_time_entries_path(@project, criteria: ['recurrence_of'], columns: 'year')
