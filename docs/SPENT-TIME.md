@@ -104,7 +104,7 @@ Found on the way, outside this feature:
   `RAILS_ENV` fails on 5.1 (`LoadError listen`); fixed here in `03480ad`, worked around for the
   5.1 server by running it with `RAILS_ENV=production`.
 - The intermittent test (decision q4), `test_renew_anchor_mode_fixed_one_issue_date_not_set`, failed
-  in 3 of the 11 full runs made with the feature (twice on 5.1, once on 7.0; 0 of 2 baseline runs,
+  in 3 of the 10 full runs made with the feature (twice on 5.1, once on 7.0; 0 of 2 baseline runs,
   0 of 2 combined runs). On 7.0 the q4 helper gave: "IssueRecurrence #253: Last issue is invalid;
   Issue #nil: Recurrence of is invalid; Issue #771942122: Recurrences is invalid", i.e. a recurrence
   of the original issue was itself invalid when the copy validated its `recurrence_of`. The same seed
