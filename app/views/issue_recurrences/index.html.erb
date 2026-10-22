@@ -50,7 +50,7 @@
           <% if spent_time %>
             <td class="spent_hours">
               <% if series %>
-                <%= link_to format_hours(series.spent_hours),
+                <%= link_to_if series.spent_hours > 0, format_hours(series.spent_hours),
                   recurrence_series_time_entries_path(series) %>
               <% end %>
             </td>

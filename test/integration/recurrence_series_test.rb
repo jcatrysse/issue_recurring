@@ -220,6 +220,18 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
     end
   end
 
+  def test_module_tab_links_spent_time_only_when_there_is_some
+    issue = issues(:issue_03)
+    issue.update!(start_date: Date.current - 5, due_date: Date.current - 5)
+    schedule(issue)
+    with_settings timespan_format: 'decimal' do
+      get project_recurrences_path(@project)
+      cell = css_select("#project_recurrences tr:has(a[href='#{issue_path(issue)}']) td.spent_hours").first
+      assert_equal '0.00', cell.text.strip
+      assert_nil cell.at_css('a')
+    end
+  end
+
   def test_module_tab_report_link
     build_second_series
     with_settings timespan_format: 'decimal' do
