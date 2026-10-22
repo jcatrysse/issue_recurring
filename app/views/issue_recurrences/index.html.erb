@@ -1,7 +1,7 @@
 <% spent_time = User.current.allowed_to?(:view_time_entries, @project) %>
 <% if spent_time %>
   <div class="contextual">
-    <%= link_to l(:label_spent_time), recurrence_series_report_path(@project) %>
+    <%= link_to l(:label_report), recurrence_series_report_path(@project) %>
   </div>
 <% end %>
 

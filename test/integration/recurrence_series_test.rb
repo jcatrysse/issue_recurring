@@ -178,7 +178,7 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
   def test_module_tab_report_link
     with_settings timespan_format: 'decimal' do
       get project_recurrences_path(@project)
-      href = css_select('#content .contextual a').detect { |a| a.text == 'Spent time' }['href']
+      href = css_select('#content .contextual a').detect { |a| a.text == 'Report' }['href']
       get href
       assert_response :success
       assert_select '#time-report tr.last-level', 1
@@ -194,7 +194,7 @@ class RecurrenceSeriesTest < IssueRecurringIntegrationTestCase
       assert_response :success
       assert_select '#project_recurrences td.estimated_hours', '9.00'
       assert_select '#project_recurrences td.spent_hours', 0
-      assert_select '#content .contextual a', text: 'Spent time', count: 0
+      assert_select '#content .contextual a', text: 'Report', count: 0
       assert_select 'p.query-totals .total-for-spent-hours', 0
     end
   end
