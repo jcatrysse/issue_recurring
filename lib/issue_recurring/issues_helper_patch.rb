@@ -100,5 +100,37 @@ module IssueRecurring
       link_to sprite_icon('del', l(:button_delete)), issue_recurrence_path(r),
         method: :delete, remote: true, class: 'icon icon-del'
     end
+
+    # Estimated and spent time of the series the issue belongs to, shown the way
+    # the issue page shows the issue's own; nil when there is nothing to show.
+    def recurrence_series_totals(issue)
+      series = IssueRecurrenceSeries.for_issue(issue)
+      return if series.nil?
+
+      totals = []
+      if series.estimated_hours &&
+          !series.template.disabled_core_fields.include?('estimated_hours')
+        totals << "#{l(:field_estimated_hours)}: #{l_hours_short(series.estimated_hours)}"
+      end
+      if series.spent_hours > 0 && User.current.allowed_to?(:view_time_entries, issue.project)
+        totals << safe_join(["#{l(:label_spent_time)}: ",
+                             link_to(l_hours_short(series.spent_hours),
+                                     recurrence_series_time_entries_path(series))])
+      end
+      return if totals.empty?
+
+      safe_join(["#{l(:label_total)} (#{l(:label_x_issues, count: series.issues_count)}): ",
+                 safe_join(totals, ', ')])
+    end
+
+    # Spent time filtered on the series; across projects when the series is.
+    def recurrence_series_time_entries_path(series)
+      filter = {'issue.recurrence_of' => series.template.id}
+      if series.single_project?
+        project_time_entries_path(series.template.project, filter)
+      else
+        time_entries_path(filter)
+      end
+    end
   end
 end

@@ -18,6 +18,10 @@
       </p>
     <% end %>
 
+    <% if (totals = recurrence_series_totals(@issue)) %>
+      <p class="recurrence-series"><%= totals %></p>
+    <% end %>
+
     <div id="recurrences">
       <%= render partial: 'issues/recurrences/index' %>
     </div>
