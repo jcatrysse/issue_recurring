@@ -40,7 +40,8 @@ Reviewer: an independent Claude agent, read-only, given the code and the core so
    the numbers. Recorded in docs/SPENT-TIME.md.
 8. **Minor. A template that is itself a recurrence stays in the series it recurred in.**
    Resolution: kept by design (its own work belongs to the occurrence it is), pinned by
-   `test_template_that_is_a_recurrence_stays_in_its_series`, recorded in docs/SPENT-TIME.md.
+   `test_template_that_is_a_recurrence_stays_in_its_series`; Jan chose this (option A) on
+   2026-10-22, recorded in docs/SPENT-TIME.md.
 9. **Tests that would pass with wrong code; gaps.**
    Resolution: fixed in `4e1817f`: a second series (`=` and `!` now differ from `*` and `!*`,
    several values), grouping with several groups and blank, copy_last, deleted template, invisible

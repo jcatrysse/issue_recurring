@@ -76,7 +76,7 @@ Found on the way, outside this feature:
 
 Known limits, by decision or as measured:
 - A recurrence that gets schedules of its own stays in the series it recurred in; only its own
-  recurrences form the new series (review finding 8, pinned by a test).
+  recurrences form the new series (review finding 8, pinned by a test; decided by Jan, option A).
 - After adding or deleting a schedule on the issue page or the module tab, the totals show their
   new state after a reload (finding 7; time itself does not change by it).
 - On global lists the column "Recurrence of" also names the template of a visible issue in a
@@ -378,6 +378,10 @@ recommendation in front of him:
 - `master`: Jan merges it himself from a branch. `redmine70-migration`: pushed directly.
 - On `master` at all: asked by Jan for this feature, an exception to his general decision of
   2026-10-07 ("nothing to `master`, no 5.1").
+- After the build, same day: a recurrence that gets schedules of its own stays in the series it
+  recurred in, only its own recurrences form the new series: **A** (as built, pinned by
+  `test_template_that_is_a_recurrence_stays_in_its_series`). The alternative was B, its own time
+  moves to the new series.
 
 The options as they were put to him:
 
