@@ -115,7 +115,12 @@ class IssueRecurrenceSeriesTest < ActiveSupport::TestCase
     ids = template_ids(*issues)
     column = IssueRecurring::RecurrenceOfQueryColumn.new
     issues.each do |issue|
-      assert_equal ids[issue.id], column.value(Issue.find(issue.id))&.id, "##{issue.id}"
+      template = column.value(Issue.find(issue.id))
+      if ids[issue.id]
+        assert_equal ids[issue.id], template.id, "##{issue.id}"
+      else
+        assert_nil template, "##{issue.id}"
+      end
     end
     assert_equal @template, column.value(TimeEntry.new(issue: @manual))
     assert_nil column.value(TimeEntry.new)
