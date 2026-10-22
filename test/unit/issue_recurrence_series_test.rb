@@ -2,7 +2,7 @@ require_relative '../test_helper'
 require_relative '../recurrence_series_helper'
 
 class IssueRecurrenceSeriesTest < ActiveSupport::TestCase
-  self.fixture_path = File.expand_path('../../fixtures/', __FILE__)
+  self.fixture_paths = [File.expand_path('../../fixtures/', __FILE__)]
   self.fixture_table_names = []
   fixtures :issues, :issue_statuses,
     :users, :email_addresses, :trackers, :projects,
