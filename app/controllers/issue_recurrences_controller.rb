@@ -9,9 +9,12 @@ class IssueRecurrencesController < ApplicationController
   helper :issues
 
   def index
-    @recurrences = @project.recurrences.select {|r| r.visible?}
+    @recurrences = @project.recurrences.select {|r| r.visible?}.sort_by {|r| [r.issue_id, r.id]}
     @next_dates = IssueRecurrence.recurrences_dates(@recurrences)
     @predicted_dates = IssueRecurrence.recurrences_dates(@recurrences, true)
+    # Series totals on the first row of each issue only, by recurrence id
+    series = IssueRecurrenceSeries.for_templates(@recurrences.map(&:issue).uniq)
+    @series = @recurrences.uniq(&:issue_id).to_h { |r| [r.id, series[r.issue_id]] }
   end
 
   def new

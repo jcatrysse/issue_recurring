@@ -1,6 +1,14 @@
+<% spent_time = User.current.allowed_to?(:view_time_entries, @project) %>
+<% if spent_time %>
+  <div class="contextual">
+    <%= link_to l(:label_spent_time), recurrence_series_report_path(@project) %>
+  </div>
+<% end %>
+
 <h2><%= t ".heading" %></h2>
 
 <% if @recurrences.present? %>
+  <%= recurrence_series_totals_tag(@series.values, spent_time) %>
   <table id="project_recurrences" class="list odd-even">
     <thead>
       <tr>
@@ -14,6 +22,10 @@
         <th><%= t '.anchor_mode' %></th>
         <th><%= t '.limit' %></th>
         <th><%= t '.count' %></th>
+        <th><%= l(:field_estimated_hours) %></th>
+        <% if spent_time %>
+          <th><%= l(:label_spent_time) %></th>
+        <% end %>
         <th></th>
       </tr>
     </thead>
@@ -31,6 +43,18 @@
           <td class="anchor"><%= anchor_mode(r) %></td>
           <td class="limit"><%= limit_condition(r) %></td>
           <td class="count"><%= r.count %></td>
+          <% series = @series[r.id] %>
+          <td class="estimated_hours">
+            <%= format_hours(series_estimated_hours(series)) if series %>
+          </td>
+          <% if spent_time %>
+            <td class="spent_hours">
+              <% if series %>
+                <%= link_to format_hours(series.spent_hours),
+                  recurrence_series_time_entries_path(series) %>
+              <% end %>
+            </td>
+          <% end %>
           <td class="buttons"><%= delete_button(r) if r.editable? %></td>
         </tr>
       <% end %>
