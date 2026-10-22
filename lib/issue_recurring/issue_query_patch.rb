@@ -12,10 +12,11 @@ module IssueRecurring
         values: lambda { IssueRecurrenceSeries.template_values(project) }
       )
     end
-    protected :initialize_available_filters
 
+    # Computed once per query, which builds its SQL many times.
     def sql_for_recurrence_of_field(field, operator, value)
-      IssueRecurrenceSeries.sql_for_filter("#{Issue.table_name}.id", operator, value)
+      (@recurrence_of_sql ||= {})[[operator, value]] ||=
+        IssueRecurrenceSeries.sql_for_filter("#{Issue.table_name}.id", operator, value)
     end
   end
 end

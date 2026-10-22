@@ -21,11 +21,16 @@ module IssueRecurrencesHelper
     t
   end
 
-  # Spent time > Report: hours per series and month, over the last year.
-  def recurrence_series_report_path(project)
-    report_project_time_entries_path(project, 'issue.recurrence_of' => '*',
-                                     'spent_on' => '>t-365', criteria: ['recurrence_of'],
-                                     columns: 'month')
+  # Spent time > Report: hours of exactly these series per month, over the last
+  # year; across projects when a series is.
+  def recurrence_series_report_path(project, series)
+    filter = {'issue.recurrence_of' => series.map { |s| s.template.id }.join('|'),
+              'spent_on' => '>t-365', criteria: ['recurrence_of'], columns: 'month'}
+    if series.all?(&:single_project?)
+      report_project_time_entries_path(project, filter)
+    else
+      report_time_entries_path(filter)
+    end
   end
 
   def series_estimated_hours(series)

@@ -54,6 +54,16 @@ module RecurrenceSeriesHelper
     @other = issues(:issue_02)
   end
 
+  # Template issue_03 with one recurrence: 2 + 3 = 5 hours.
+  def build_second_series
+    @template2 = issues(:issue_03)
+    @template2.update!(start_date: Date.current - 20, due_date: Date.current - 20,
+                       estimated_hours: 1)
+    @copy2_1, = renew(schedule(@template2))
+    log_time(@template2, 2)
+    log_time(@copy2_1, 3)
+  end
+
   # 1 + 2 + 3 + 4 + 5 + 6 = 21 hours on the series, 7 on issue_02.
   def log_series_time
     [@template, @subtask, @copy1, @subtask_copy1, @manual, @copy2].each_with_index do |issue, i|
