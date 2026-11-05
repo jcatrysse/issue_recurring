@@ -134,7 +134,7 @@ class IssueRecurrence < ActiveRecord::Base
       self.include_subtasks = false if self.include_subtasks.nil?
     end
 
-    @journal_notes = ''
+    @journal_notes = +''
   end
   before_destroy :editable?
 

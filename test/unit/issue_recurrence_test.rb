@@ -47,6 +47,24 @@ class IssueRecurrenceTest < ActiveSupport::TestCase
     stray.destroy if stray&.persisted?
   end
 
+  def test_log_does_not_mutate_a_string_literal
+    recurrence = IssueRecurrence.new(issue: @issue1)
+    warnings = []
+    original_warn = Warning.method(:warn)
+    original_deprecated = Warning[:deprecated]
+    Warning[:deprecated] = true
+    Warning.define_singleton_method(:warn) { |message, **| warnings << message }
+    begin
+      recurrence.send(:log, :warning_copy_relation, id: 1, relation: 'relates', errors: 'x')
+    ensure
+      Warning.define_singleton_method(:warn, original_warn)
+      Warning[:deprecated] = original_deprecated
+    end
+
+    assert_empty warnings.grep(/literal string will be frozen/)
+    assert recurrence.journal_notes.end_with?("\r\n")
+  end
+
   def test_copy_issue_relations_skips_duplicate_relations
     recurrence = IssueRecurrence.new(issue: @issue1)
     source = IssueRelation.create!(issue_from: @issue1, issue_to: @issue3,
